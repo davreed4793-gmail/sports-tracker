@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Sports Tracker: Calendar View</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>My Sports Tracker: Calendar View</h1>
+        <nav class="page-nav">
+            <a href="index.html">By Team</a>
+            <a href="calendar.html" class="active">By Date</a>
+            <a href="settings.html">Settings</a>
+        </nav>
+        <p class="last-updated">Last updated: <span id="update-time">Loading...</span></p>
+    </header>
+
+    <main id="calendar">
+        <p class="loading">Loading schedules...</p>
+    </main>
+
+    <footer>
+        <p>Data from ESPN | Auto-refreshes every 15 minutes</p>
+    </footer>
+
+    <script src="shared.js"></script>
+    <script src="calendar.js"></script>
+</body>
+</html>

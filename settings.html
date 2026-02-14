@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - My Sports Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Settings</h1>
+        <nav class="page-nav">
+            <a href="index.html">By Team</a>
+            <a href="calendar.html">By Date</a>
+            <a href="settings.html" class="active">Settings</a>
+        </nav>
+    </header>
+
+    <main id="settings">
+        <section class="settings-section">
+            <h2>My Favorite Teams</h2>
+            <p class="settings-description">Select up to 10 teams to track. Changes are saved automatically.</p>
+
+            <div id="selected-teams" class="selected-teams">
+                <p class="loading">Loading your teams...</p>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h2>Big Game Settings</h2>
+            <p class="settings-description">Select which game categories should be highlighted as "Big Games" for each competition.</p>
+
+            <div class="competition-controls">
+                <button id="expand-all-btn" class="control-btn">Expand All</button>
+                <button id="collapse-all-btn" class="control-btn">Collapse All</button>
+            </div>
+
+            <div id="big-game-categories" class="competition-sections">
+                <!-- Per-competition sections generated dynamically by settings.js -->
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h2>Add Teams</h2>
+
+            <div class="search-box">
+                <input type="text" id="team-search" placeholder="Search teams..." autocomplete="off">
+            </div>
+
+            <div id="search-results" class="search-results" style="display: none;"></div>
+
+            <div class="league-picker">
+                <div class="league-section">
+                    <h3>Premier League</h3>
+                    <div id="teams-premier-league" class="team-grid">
+                        <p class="loading">Loading teams...</p>
+                    </div>
+                </div>
+
+                <div class="league-section">
+                    <h3>NFL</h3>
+                    <div id="teams-nfl" class="team-grid">
+                        <p class="loading">Loading teams...</p>
+                    </div>
+                </div>
+
+                <div class="league-section">
+                    <h3>NHL</h3>
+                    <div id="teams-nhl" class="team-grid">
+                        <p class="loading">Loading teams...</p>
+                    </div>
+                </div>
+
+                <div class="league-section">
+                    <h3>NBA</h3>
+                    <div id="teams-nba" class="team-grid">
+                        <p class="loading">Loading teams...</p>
+                    </div>
+                </div>
+
+                <div class="league-section">
+                    <h3>MLB</h3>
+                    <div id="teams-mlb" class="team-grid">
+                        <p class="loading">Loading teams...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Data from ESPN | Teams are saved locally in your browser</p>
+    </footer>
+
+    <script src="shared.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

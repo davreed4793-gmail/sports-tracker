@@ -1,0 +1,951 @@
+/* Reset and base styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 2rem;
+    color: #1a1a2e;
+    margin-bottom: 5px;
+}
+
+.last-updated {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Main content */
+main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.loading {
+    text-align: center;
+    color: #666;
+    font-size: 1.2rem;
+    grid-column: 1 / -1;
+}
+
+/* Team cards */
+.team-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.team-header {
+    padding: 15px 20px;
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.team-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    background: white;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+.team-name {
+    flex: 1;
+}
+
+/* League colors */
+.team-header.nfl { background: #013369; }
+.team-header.mlb { background: #002D72; }
+.team-header.nhl { background: #000000; }
+.team-header.nba { background: #1d428a; }
+.team-header.premier-league { background: #3D195B; }
+.team-header.champions-league { background: #0d1541; }
+.team-header.fa-cup { background: #e30613; }
+.team-header.league-cup { background: #00a651; }
+
+/* Game list */
+.games-list {
+    padding: 10px 0;
+}
+
+.game {
+    padding: 12px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.game:last-child {
+    border-bottom: none;
+}
+
+.game-date {
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 3px;
+}
+
+.game-matchup {
+    color: #444;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.opponent-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.game-details {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.game-channel {
+    display: inline-block;
+    background: #e8e8e8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.no-games {
+    padding: 20px;
+    text-align: center;
+    color: #888;
+}
+
+/* Completed game styling */
+.game.completed {
+    opacity: 0.6;
+}
+
+.game-score {
+    font-weight: bold;
+    color: #333;
+}
+
+.game-result.win {
+    color: #28a745;
+}
+
+.game-result.loss {
+    color: #dc3545;
+}
+
+/* Season labels (Spring Training, Preseason, Playoffs) */
+.season-label {
+    display: inline-block;
+    background: #888;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Preseason/Spring Training games - subtle styling */
+.game.preseason {
+    background: #f5f5f5;
+    border-left: 3px solid #aaa;
+}
+
+/* Navigation */
+.page-nav {
+    margin: 15px 0;
+}
+
+.page-nav a {
+    display: inline-block;
+    padding: 8px 20px;
+    margin: 0 5px;
+    text-decoration: none;
+    color: #666;
+    background: #e8e8e8;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    transition: background 0.2s, color 0.2s;
+}
+
+.page-nav a:hover {
+    background: #ddd;
+}
+
+.page-nav a.active {
+    background: #1a1a2e;
+    color: white;
+}
+
+/* Calendar view */
+#calendar {
+    display: block;
+}
+
+.calendar-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.calendar-section h2 {
+    font-size: 1.3rem;
+    color: #1a1a2e;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.calendar-section.later-section {
+    opacity: 0.85;
+}
+
+.calendar-section.later-section h2 {
+    color: #666;
+}
+
+/* Games table */
+.games-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.games-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f8f8f8;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #666;
+    border-bottom: 2px solid #eee;
+}
+
+.games-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.games-table tr:last-child td {
+    border-bottom: none;
+}
+
+.games-table tr.completed {
+    opacity: 0.6;
+}
+
+.games-table tr.preseason {
+    background: #f5f5f5;
+}
+
+.date-cell {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.time-cell {
+    color: #666;
+    white-space: nowrap;
+}
+
+.team-cell {
+    white-space: nowrap;
+}
+
+.matchup-cell {
+    color: #444;
+    white-space: nowrap;
+    min-width: 280px;
+}
+
+.channel-cell {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Team badges in table */
+.team-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.team-badge.nfl { background: #013369; }
+.team-badge.mlb { background: #002D72; }
+.team-badge.nhl { background: #000000; }
+.team-badge.nba { background: #1d428a; }
+.team-badge.premier-league { background: #3D195B; }
+.team-badge.champions-league { background: #0d1541; }
+.team-badge.fa-cup { background: #e30613; }
+.team-badge.league-cup { background: #00a651; }
+.team-badge.big-game { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+
+/* Must Watch styling */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.must-watch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: #888;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.must-watch-label:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.must-watch-label.checked {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #d97706;
+}
+
+.must-watch-checkbox {
+    display: none;
+}
+
+.must-watch-text {
+    font-weight: 500;
+}
+
+.must-watch-icon {
+    font-size: 1.1rem;
+    color: #ccc;
+    transition: color 0.2s;
+}
+
+.must-watch-label.checked .must-watch-icon {
+    color: #f59e0b;
+}
+
+.must-watch-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Must watch game highlighting */
+.game.must-watch {
+    background: linear-gradient(90deg, #fef3c7 0%, #fff 100%);
+    border-left: 3px solid #f59e0b;
+}
+
+.games-table tr.must-watch {
+    background: #fef3c7;
+}
+
+.games-table tr.must-watch td:first-child {
+    border-left: 3px solid #f59e0b;
+}
+
+/* Big Games card - span is set dynamically by JavaScript */
+.big-games-card {
+    /* grid-column: span dynamically calculated in app.js */
+}
+
+.team-header.big-games {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+}
+
+.big-games-icon {
+    object-fit: cover;
+}
+
+.big-game-sport {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.big-game-matchup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.big-game-team {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.big-game-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.big-game-at {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* Locked must-watch star for favorite team big games */
+.must-watch-locked {
+    color: #f59e0b;
+    cursor: default;
+}
+
+/* Favorite team big game - subtle indicator */
+.favorite-big-game {
+    border-left: 3px solid #3D195B;
+}
+
+@media (max-width: 600px) {
+    .big-games-card {
+        /* grid-column: span dynamically calculated in app.js */
+    }
+
+    .big-game-matchup {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .big-game-at {
+        display: none;
+    }
+
+    .big-game-team {
+        font-size: 0.9rem;
+    }
+
+    .big-game-logo {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Error footer */
+.error-footer {
+    grid-column: 1 / -1;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 20px;
+    color: #991b1b;
+    font-size: 0.85rem;
+}
+
+.error-footer strong {
+    color: #b91c1c;
+}
+
+.error-footer ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.error-footer li {
+    margin: 4px 0;
+}
+
+.error-actions {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #fecaca;
+    font-size: 0.8rem;
+}
+
+.error-actions a {
+    color: #b91c1c;
+    text-decoration: underline;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    color: #888;
+    font-size: 0.85rem;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .team-header {
+        font-size: 1rem;
+    }
+
+    /* Table responsive */
+    .games-table {
+        font-size: 0.85rem;
+    }
+
+    .games-table th,
+    .games-table td {
+        padding: 8px 6px;
+    }
+
+    .team-badge {
+        padding: 2px 6px;
+        font-size: 0.7rem;
+    }
+
+    .page-nav a {
+        padding: 6px 14px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Settings page */
+#settings {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.settings-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.settings-section h2 {
+    font-size: 1.3rem;
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+
+.settings-description {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+/* Selected teams */
+.selected-teams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.selected-team {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f5f5f5;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.team-logo-small {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.selected-team .team-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.team-league-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.team-league-badge.premier-league { background: #3D195B; }
+.team-league-badge.nfl { background: #013369; }
+.team-league-badge.nhl { background: #000000; }
+.team-league-badge.nba { background: #1d428a; }
+.team-league-badge.mlb { background: #002D72; }
+
+.remove-team-btn {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.remove-team-btn:hover {
+    color: #dc3545;
+}
+
+.no-teams {
+    color: #888;
+    font-style: italic;
+}
+
+/* League sections */
+.league-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.league-section h3 {
+    font-size: 1rem;
+    color: #444;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Team grid */
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.team-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.team-option:hover:not(.selected) {
+    background: #e8f4ff;
+    border-color: #4a90d9;
+}
+
+.team-option.selected {
+    background: #d4edda;
+    border-color: #28a745;
+    cursor: default;
+    opacity: 0.7;
+}
+
+.team-logo-tiny {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+/* Search box */
+.search-box {
+    margin-bottom: 20px;
+}
+
+#team-search {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#team-search:focus {
+    border-color: #4a90d9;
+}
+
+#team-search::placeholder {
+    color: #999;
+}
+
+/* Search results */
+.search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.search-results .team-option {
+    justify-content: flex-start;
+}
+
+.search-results .team-league-badge {
+    margin-left: auto;
+}
+
+.no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #888;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* Collapsible league sections */
+.league-section h3 {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    transition: color 0.2s;
+}
+
+.league-section h3:hover {
+    color: #4a90d9;
+}
+
+.collapse-indicator {
+    font-size: 0.7rem;
+    color: #888;
+    transition: transform 0.2s;
+}
+
+.team-grid.collapsed {
+    display: none;
+}
+
+/* Reorder buttons */
+.reorder-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.reorder-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    color: #666;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.reorder-btn:hover:not(:disabled) {
+    background: #e8f4ff;
+    border-color: #4a90d9;
+    color: #4a90d9;
+}
+
+.reorder-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* Big Game Settings - Competition controls */
+.competition-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.control-btn {
+    padding: 6px 14px;
+    background: #e8e8e8;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #555;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background: #ddd;
+    border-color: #ccc;
+}
+
+/* Competition sections container */
+.competition-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Individual competition section */
+.competition-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Competition header (clickable) */
+.competition-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.competition-header:hover {
+    background: #e9ecef;
+}
+
+.competition-header .collapse-indicator {
+    font-size: 0.7rem;
+    color: #888;
+    width: 12px;
+    text-align: center;
+}
+
+.competition-name {
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+}
+
+.enabled-count {
+    font-size: 0.85rem;
+    color: #666;
+    background: #e0e0e0;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Big Game Settings - Category toggles */
+.category-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 16px 16px 16px;
+}
+
+.category-toggles.collapsed {
+    display: none;
+}
+
+.category-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.category-toggle:hover {
+    background: #e9ecef;
+}
+
+.category-toggle input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: #28a745;
+}
+
+.category-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.category-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.category-desc {
+    font-size: 0.85em;
+    color: #666;
+}
+
+/* Settings responsive */
+@media (max-width: 600px) {
+    .team-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    .selected-team {
+        flex-wrap: wrap;
+    }
+
+    .team-league-badge {
+        font-size: 0.6rem;
+    }
+
+    .search-results {
+        grid-template-columns: 1fr;
+    }
+
+    .reorder-buttons {
+        flex-direction: row;
+    }
+
+    .category-toggle {
+        padding: 10px;
+    }
+
+    .category-name {
+        font-size: 0.95rem;
+    }
+
+    .category-desc {
+        font-size: 0.8rem;
+    }
+}
