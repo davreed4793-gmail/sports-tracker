@@ -63,6 +63,51 @@ const DAYS_AHEAD = 30;
 // Auto-refresh interval (15 minutes in milliseconds)
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
+// Big Games configuration (same as app.js)
+const BIG_GAMES_CONFIG = {
+    premierLeague: {
+        espnPath: 'soccer/eng.1',
+        sport: 'soccer',
+        league: 'premier-league',
+        thresholdOffset: 3
+    },
+    championsLeague: {
+        espnPath: 'soccer/uefa.champions',
+        sport: 'soccer',
+        league: 'champions-league',
+        // Any game with at least one English team qualifies
+        requiresEnglishTeam: true
+    },
+    faCup: {
+        espnPath: 'soccer/eng.fa',
+        sport: 'soccer',
+        league: 'fa-cup',
+        // Uses same threshold as Premier League
+        usePremierLeagueThreshold: true
+    },
+    leagueCup: {
+        espnPath: 'soccer/eng.league_cup',
+        sport: 'soccer',
+        league: 'league-cup',
+        // Uses same threshold as Premier League
+        usePremierLeagueThreshold: true
+    },
+    nba: {
+        espnPath: 'basketball/nba',
+        sport: 'basketball',
+        league: 'nba',
+        // Top 6 by wins in each conference
+        useNBAThreshold: true
+    },
+    nhl: {
+        espnPath: 'hockey/nhl',
+        sport: 'hockey',
+        league: 'nhl',
+        // Top 8 by wins in each conference
+        useNHLThreshold: true
+    }
+};
+
 // Get favorite team IDs for reliable comparison (computed dynamically)
 function getFavoriteTeamIds() {
     return getFavoriteTeams().map(t => t.id);
@@ -90,7 +135,9 @@ function getTeamColor(teamId, primaryColor, alternateColor) {
 async function fetchTeamInfo(team) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/${team.espnPath}/teams/${team.id}`;
     try {
-        const data = await cachedFetch(url, 'teams');
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
         return data.team || null;
     } catch {
         return null;
@@ -118,7 +165,11 @@ async function fetchScoreboardForDate(espnPath, dateStr) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/${espnPath}/scoreboard?dates=${dateStr}`;
 
     try {
-        const data = await cachedFetch(url, 'schedule');
+        const response = await fetch(url);
+        if (!response.ok) {
+            return { events: [], error: true };
+        }
+        const data = await response.json();
         return { events: data.events || [], error: false };
     } catch (error) {
         console.error(`Error fetching scoreboard for ${dateStr}:`, error);
@@ -139,7 +190,12 @@ async function fetchTeamGames(team) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/${team.espnPath}/teams/${team.id}/schedule`;
 
     try {
-        const data = await cachedFetch(url, 'schedule');
+        const response = await fetch(url);
+        if (!response.ok) {
+            // Schedule endpoint failed, fall back to scoreboard
+            return fetchTeamGamesFromScoreboard(team);
+        }
+        const data = await response.json();
         const rawEvents = data.events || [];
 
         // Extract team color from API response
@@ -385,6 +441,22 @@ function formatTimeForTable(date) {
     });
 }
 
+// Format league slug to display name
+function formatLeagueName(league) {
+    const names = {
+        'premier-league': 'Premier League',
+        'champions-league': 'Champions League',
+        'fa-cup': 'FA Cup',
+        'league-cup': 'League Cup',
+        'nfl': 'NFL',
+        'nhl': 'NHL',
+        'mlb': 'MLB',
+        'nba': 'NBA',
+        'big-game': 'Big Game'
+    };
+    return names[league] || league;
+}
+
 // Render a table of games
 function renderGamesTable(games, tableId) {
     if (games.length === 0) {
@@ -470,7 +542,12 @@ function renderGamesTable(games, tableId) {
 // Now returns team IDs for reliable matching instead of names
 async function fetchPremierLeagueData() {
     try {
-        const data = await cachedFetch('https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings', 'standings');
+        const response = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings');
+        if (!response.ok) {
+            return { qualifyingTeamIds: [], allEnglishTeamIds: [], error: true };
+        }
+
+        const data = await response.json();
         const children = data.children || [];
         if (!children.length) {
             return { qualifyingTeamIds: [], allEnglishTeamIds: [], error: true };
@@ -520,7 +597,12 @@ async function fetchPremierLeagueData() {
 // Fetch NBA top tier teams (top 6 by wins in each conference)
 async function fetchNBATopTierTeams() {
     try {
-        const data = await cachedFetch(STANDINGS_URLS['nba'], 'standings');
+        const response = await fetch(STANDINGS_URLS['nba']);
+        if (!response.ok) {
+            return { topTierTeamIds: [], error: true };
+        }
+
+        const data = await response.json();
         const children = data.children || [];
         const topTierTeamIds = [];
 
@@ -560,7 +642,12 @@ async function fetchNBATopTierTeams() {
 // Fetch NHL top tier teams (top 8 by wins in each conference)
 async function fetchNHLTopTierTeams() {
     try {
-        const data = await cachedFetch(STANDINGS_URLS['nhl'], 'standings');
+        const response = await fetch(STANDINGS_URLS['nhl']);
+        if (!response.ok) {
+            return { topTierTeamIds: [], error: true };
+        }
+
+        const data = await response.json();
         const children = data.children || [];
         const topTierTeamIds = [];
 
@@ -773,29 +860,12 @@ function renderErrorFooter(errors) {
     `;
 }
 
-// Refresh indicator helpers
-function showRefreshIndicator() {
-    const indicator = document.getElementById('refresh-indicator');
-    if (indicator) indicator.style.display = 'block';
-}
-
-function hideRefreshIndicator() {
-    const indicator = document.getElementById('refresh-indicator');
-    if (indicator) indicator.style.display = 'none';
-}
-
 // Main function to load all schedules
 async function loadSchedules() {
     const container = document.getElementById('calendar');
     const updateTime = document.getElementById('update-time');
 
-    // Check if this is a refresh (content already loaded) vs initial load
-    const isRefresh = container.querySelector('.calendar-section') !== null;
-    if (isRefresh) {
-        showRefreshIndicator();
-    } else {
-        container.innerHTML = '<p class="loading">Loading schedules...</p>';
-    }
+    container.innerHTML = '<p class="loading">Loading schedules...</p>';
 
     try {
         // Track errors for each category
@@ -889,8 +959,6 @@ async function loadSchedules() {
     } catch (error) {
         console.error('Error loading schedules:', error);
         container.innerHTML = '<p class="loading">Error loading schedules. Please refresh.</p>';
-    } finally {
-        hideRefreshIndicator();
     }
 }
 

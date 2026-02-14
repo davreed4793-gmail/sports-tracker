@@ -149,7 +149,11 @@ function isFavorite(teamId, league) {
 async function fetchLeagueTeams(leagueKey) {
     const league = LEAGUES[leagueKey];
     try {
-        const data = await cachedFetch(league.teamsUrl, 'teams');
+        const response = await fetch(league.teamsUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
         const teams = data.sports?.[0]?.leagues?.[0]?.teams || [];
 
         return teams.map(t => {

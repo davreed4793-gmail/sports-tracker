@@ -1,53 +1,6 @@
 // Shared constants and functions for Sports Tracker
 
 // ============================================
-// API Caching
-// ============================================
-
-const API_CACHE_KEY = 'sports-tracker-api-cache';
-const CACHE_TTL = {
-    standings: 30 * 60 * 1000,  // 30 minutes for standings
-    schedule: 15 * 60 * 1000,   // 15 minutes for schedules
-    teams: 24 * 60 * 60 * 1000  // 24 hours for team lists
-};
-
-// Cached fetch wrapper - returns parsed JSON
-async function cachedFetch(url, cacheType = 'schedule') {
-    const cacheKey = `${API_CACHE_KEY}-${btoa(url).slice(0, 50)}`;  // Create safe key from URL
-    const ttl = CACHE_TTL[cacheType] || CACHE_TTL.schedule;
-
-    // Try to get from cache
-    try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < ttl) {
-                return data;  // Cache hit
-            }
-        }
-    } catch (e) {
-        // Cache miss or parse error, proceed with fetch
-    }
-
-    // Fetch fresh data
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-
-    // Store in cache (silently fail if localStorage unavailable/full)
-    try {
-        localStorage.setItem(cacheKey, JSON.stringify({
-            data,
-            timestamp: Date.now()
-        }));
-    } catch (e) {
-        // localStorage full or unavailable, continue without caching
-    }
-
-    return data;
-}
-
-// ============================================
 // Team Level Constants
 // ============================================
 
@@ -104,51 +57,6 @@ const STANDINGS_URLS = {
     'nhl': 'https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings'
 };
 
-// Big Games configuration (competitions to track for "big game" detection)
-const BIG_GAMES_CONFIG = {
-    premierLeague: {
-        espnPath: 'soccer/eng.1',
-        sport: 'soccer',
-        league: 'premier-league',
-        thresholdOffset: 3
-    },
-    championsLeague: {
-        espnPath: 'soccer/uefa.champions',
-        sport: 'soccer',
-        league: 'champions-league',
-        // Any game with at least one English team qualifies
-        requiresEnglishTeam: true
-    },
-    faCup: {
-        espnPath: 'soccer/eng.fa',
-        sport: 'soccer',
-        league: 'fa-cup',
-        // Uses same threshold as Premier League
-        usePremierLeagueThreshold: true
-    },
-    leagueCup: {
-        espnPath: 'soccer/eng.league_cup',
-        sport: 'soccer',
-        league: 'league-cup',
-        // Uses same threshold as Premier League
-        usePremierLeagueThreshold: true
-    },
-    nba: {
-        espnPath: 'basketball/nba',
-        sport: 'basketball',
-        league: 'nba',
-        // Top 6 by wins in each conference
-        useNBAThreshold: true
-    },
-    nhl: {
-        espnPath: 'hockey/nhl',
-        sport: 'hockey',
-        league: 'nhl',
-        // Top 8 by wins in each conference
-        useNHLThreshold: true
-    }
-};
-
 // ============================================
 // Big Game Settings (localStorage)
 // ============================================
@@ -161,17 +69,9 @@ const COMPETITIONS = {
     'champions-league': 'Champions League',
     'fa-cup': 'FA Cup',
     'league-cup': 'League Cup',
-    'nfl': 'NFL',
     'nba': 'NBA',
-    'nhl': 'NHL',
-    'mlb': 'MLB'
+    'nhl': 'NHL'
 };
-
-// Format league slug to display name
-function formatLeagueName(league) {
-    if (league === 'big-game') return 'Big Game';
-    return COMPETITIONS[league] || league;
-}
 
 // All game categories
 const ALL_CATEGORIES = ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'];
