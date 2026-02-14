@@ -123,9 +123,17 @@ function getFavoriteTeamIds() {
     return getFavoriteTeams().map(t => t.id);
 }
 
-// Check if a team ID matches any favorite team
-function isFavoriteTeamId(teamId) {
-    return getFavoriteTeamIds().includes(teamId);
+// Get favorite team IDs filtered by sport (for cross-sport ID collision prevention)
+function getFavoriteTeamIdsBySport(sport) {
+    return getFavoriteTeams()
+        .filter(t => t.sport === sport)
+        .map(t => t.id);
+}
+
+// Check if a team ID matches any favorite team (within the same sport)
+function isFavoriteTeamId(teamId, sport) {
+    const favoriteIds = getFavoriteTeamIdsBySport(sport);
+    return favoriteIds.map(String).includes(String(teamId));
 }
 
 // Get the appropriate team color (checks override list)
@@ -711,7 +719,7 @@ async function fetchBigGames() {
                 const awayTeamDisplayName = awayTeam?.team?.displayName || awayTeam?.team?.name || 'TBD';
 
                 // *** KEY DISTINCTION: Check if either team is a favorite (by ID) ***
-                const involvesFavorite = isFavoriteTeamId(homeTeamId) || isFavoriteTeamId(awayTeamId);
+                const involvesFavorite = isFavoriteTeamId(homeTeamId, config.sport) || isFavoriteTeamId(awayTeamId, config.sport);
 
                 // Categorize teams and game
                 const homeTeamCategory = categorizeTeam(homeTeamId, topTierTeamIds, favoriteTeamIds);
