@@ -795,16 +795,15 @@ function renderBigGamesCard(games) {
     }
 
     // Auto-save favorite team big games as Must Watch
-    const currentMustWatch = getMustWatchGames();
-    let mustWatchUpdated = false;
+    // Uses fresh read each iteration to avoid race conditions with user toggles
     for (const game of games) {
-        if (game.involvesFavorite && !currentMustWatch.includes(game.id)) {
-            currentMustWatch.push(game.id);
-            mustWatchUpdated = true;
+        if (game.involvesFavorite) {
+            const currentMustWatch = getMustWatchGames();
+            if (!currentMustWatch.includes(game.id)) {
+                currentMustWatch.push(game.id);
+                saveMustWatchGames(currentMustWatch);
+            }
         }
-    }
-    if (mustWatchUpdated) {
-        saveMustWatchGames(currentMustWatch);
     }
 
     const gamesHtml = games.map(game => {
