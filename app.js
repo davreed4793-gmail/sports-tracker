@@ -1,6 +1,9 @@
 // localStorage key for favorite teams (shared with settings.js)
 const FAVORITE_TEAMS_KEY = 'sports-tracker-favorite-teams';
 
+// Watch Party mode - when viewing a shared URL
+let watchPartyMode = null;
+
 // Teams with light primary colors that need to use their alternate color instead
 // Format: { teamId: true } - these teams will use alternateColor for readability with white text
 const LIGHT_COLOR_TEAM_OVERRIDES = {
@@ -1078,6 +1081,11 @@ async function loadSchedules() {
     const container = document.getElementById('schedules');
     const updateTime = document.getElementById('update-time');
 
+    // Check for Watch Party mode (shared URL)
+    if (watchPartyMode === null) {
+        watchPartyMode = getWatchPartyFromURL();
+    }
+
     // Check if this is a refresh (content already exists) vs initial load
     const isRefresh = container.querySelector('.team-card') !== null;
     if (isRefresh) {
@@ -1091,8 +1099,13 @@ async function loadSchedules() {
         // Track errors for each category
         const errors = [];
 
-        // Fetch all team games and big games in parallel
-        const myTeams = getFavoriteTeams();
+        // Use watch party teams if in shared mode, otherwise use favorites
+        let myTeams;
+        if (watchPartyMode && watchPartyMode.teams) {
+            myTeams = parseWatchPartyTeams(watchPartyMode.teams, DEFAULT_TEAMS.concat(getFavoriteTeams()));
+        } else {
+            myTeams = getFavoriteTeams();
+        }
         const gamePromises = myTeams.map(team => fetchTeamGames(team));
         const bigGamesPromise = fetchBigGames();
 
@@ -1141,7 +1154,13 @@ async function loadSchedules() {
         const bigGamesHtml = renderBigGamesCard(next7DaysBigGames);
         const errorHtml = renderErrorFooter(errors);
 
+        // Watch party banner
+        const watchPartyBanner = watchPartyMode
+            ? `<div class="watch-party-banner">Viewing shared Watch Party<a href="${window.location.pathname}">View your own</a></div>`
+            : '';
+
         container.innerHTML = `
+            ${watchPartyBanner}
             <div class="teams-column">
                 <h3 class="column-header">Next Month</h3>
                 ${teamCardsHtml}
@@ -1188,5 +1207,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('manual-refresh-btn').addEventListener('click', () => {
         clearAllCache();
         loadSchedules();
+    });
+
+    // Share button generates URL and copies to clipboard
+    document.getElementById('share-btn').addEventListener('click', async () => {
+        const teams = getFavoriteTeams();
+        const bigGameSettings = getBigGameSettings();
+        const showPreseason = getShowPreseason();
+
+        const url = generateWatchPartyURL(teams, bigGameSettings, showPreseason);
+        if (url) {
+            try {
+                await navigator.clipboard.writeText(url);
+                alert('Watch Party link copied to clipboard!');
+            } catch {
+                // Fallback for browsers that don't support clipboard API
+                prompt('Copy this Watch Party link:', url);
+            }
+        }
     });
 });

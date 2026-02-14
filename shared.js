@@ -362,3 +362,64 @@ function clearAllCache() {
         }
     }
 }
+
+// ============================================
+// Watch Party Sharing (URL encoding)
+// ============================================
+
+// Encode watch party settings to base64 URL param
+function encodeWatchParty(settings) {
+    try {
+        return btoa(JSON.stringify(settings));
+    } catch (e) {
+        console.error('Error encoding watch party:', e);
+        return null;
+    }
+}
+
+// Decode watch party settings from base64 URL param
+function decodeWatchParty(encoded) {
+    try {
+        return JSON.parse(atob(encoded));
+    } catch (e) {
+        console.error('Error decoding watch party:', e);
+        return null;
+    }
+}
+
+// Get watch party settings from URL if present
+function getWatchPartyFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const wp = params.get('wp');
+    return wp ? decodeWatchParty(wp) : null;
+}
+
+// Generate shareable URL with current settings
+function generateWatchPartyURL(teams, bigGameSettings, showPreseason) {
+    const settings = {
+        teams: teams.map(t => `${t.sport}-${t.id}`),
+        bigGames: bigGameSettings.perCompetition,
+        showPreseason: showPreseason
+    };
+    const encoded = encodeWatchParty(settings);
+    if (!encoded) return null;
+
+    const url = new URL(window.location.href);
+    url.search = `?wp=${encoded}`;
+    return url.toString();
+}
+
+// Parse watch party teams back to team objects
+function parseWatchPartyTeams(encodedTeams, allKnownTeams) {
+    // encodedTeams: ["soccer-368", "nhl-20"]
+    // Need to match against known team data to get full team objects
+    const result = [];
+    for (const encoded of encodedTeams) {
+        const [sport, id] = encoded.split('-');
+        const team = allKnownTeams.find(t => t.sport === sport && t.id === id);
+        if (team) {
+            result.push(team);
+        }
+    }
+    return result;
+}

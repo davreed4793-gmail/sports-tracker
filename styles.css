@@ -51,6 +51,40 @@ header h1 {
     background: #004085;
 }
 
+.share-btn {
+    padding: 4px 12px;
+    margin-left: 5px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.share-btn:hover {
+    background: #218838;
+}
+
+.share-btn:active {
+    background: #1e7e34;
+}
+
+.watch-party-banner {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.watch-party-banner a {
+    color: #007bff;
+    margin-left: 10px;
+}
+
 /* Main content - default grid */
 main {
     display: grid;
