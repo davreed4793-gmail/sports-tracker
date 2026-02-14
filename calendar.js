@@ -398,7 +398,8 @@ function getMustWatchGames() {
     try {
         const saved = localStorage.getItem(MUST_WATCH_KEY);
         return saved ? JSON.parse(saved) : [];
-    } catch {
+    } catch (e) {
+        console.error('Error loading Must Watch games:', e);
         return [];
     }
 }
