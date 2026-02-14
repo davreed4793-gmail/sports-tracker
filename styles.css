@@ -32,6 +32,25 @@ header h1 {
     font-size: 0.9rem;
 }
 
+.refresh-btn {
+    padding: 4px 12px;
+    margin-left: 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.refresh-btn:hover {
+    background: #0056b3;
+}
+
+.refresh-btn:active {
+    background: #004085;
+}
+
 /* Main content - default grid */
 main {
     display: grid;

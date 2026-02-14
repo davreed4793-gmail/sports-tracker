@@ -313,3 +313,52 @@ function getShowPreseason() {
 function setShowPreseason(value) {
     localStorage.setItem(PRESEASON_SETTINGS_KEY, String(value));
 }
+
+// ============================================
+// API Response Cache (24-hour TTL)
+// ============================================
+
+const CACHE_KEY_PREFIX = 'sports-tracker-cache-';
+const DEFAULT_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// Get cached data if still valid
+function getCached(key) {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY_PREFIX + key);
+        if (!cached) return null;
+
+        const entry = JSON.parse(cached);
+        const age = Date.now() - entry.timestamp;
+
+        if (age < (entry.ttl || DEFAULT_TTL)) {
+            return entry.data;
+        }
+
+        // Expired, remove it
+        localStorage.removeItem(CACHE_KEY_PREFIX + key);
+        return null;
+    } catch (e) {
+        console.error('Cache read error:', e);
+        return null;
+    }
+}
+
+// Set data in cache with TTL
+function setCache(key, data, ttl = DEFAULT_TTL) {
+    try {
+        const entry = { timestamp: Date.now(), data: data, ttl: ttl };
+        localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify(entry));
+    } catch (e) {
+        console.error('Cache write error:', e);
+    }
+}
+
+// Clear all cache entries
+function clearAllCache() {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+        if (key.startsWith(CACHE_KEY_PREFIX)) {
+            localStorage.removeItem(key);
+        }
+    }
+}

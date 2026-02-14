@@ -167,6 +167,10 @@ function getUpcomingDates(days) {
 // Fetch scoreboard for a specific date and league (used for Big Games)
 // Returns { events: [], error: boolean }
 async function fetchScoreboardForDate(espnPath, dateStr) {
+    const cacheKey = `scoreboard-${espnPath}-${dateStr}`;
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     const url = `https://site.api.espn.com/apis/site/v2/sports/${espnPath}/scoreboard?dates=${dateStr}`;
 
     try {
@@ -175,7 +179,9 @@ async function fetchScoreboardForDate(espnPath, dateStr) {
             return { events: [], error: true };
         }
         const data = await response.json();
-        return { events: data.events || [], error: false };
+        const result = { events: data.events || [], error: false };
+        setCache(cacheKey, result);
+        return result;
     } catch (error) {
         console.error(`Error fetching scoreboard for ${dateStr}:`, error);
         return { events: [], error: true };
@@ -233,12 +239,18 @@ async function fetchTeamGames(team) {
 
 // Fetch team info (for color data) from ESPN team endpoint
 async function fetchTeamInfo(team) {
+    const cacheKey = `team-info-${team.espnPath}-${team.id}`;
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     const url = `https://site.api.espn.com/apis/site/v2/sports/${team.espnPath}/teams/${team.id}`;
     try {
         const response = await fetch(url);
         if (!response.ok) return null;
         const data = await response.json();
-        return data.team || null;
+        const teamInfo = data.team || null;
+        if (teamInfo) setCache(cacheKey, teamInfo);
+        return teamInfo;
     } catch {
         return null;
     }
@@ -460,6 +472,10 @@ function cleanupOldMustWatch(currentGameIds) {
 // Fetch Premier League standings and return both qualifying teams AND all English teams
 // Now returns team IDs for reliable matching instead of names
 async function fetchPremierLeagueData() {
+    const cacheKey = 'standings-premier-league';
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     try {
         const response = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings');
         if (!response.ok) {
@@ -508,7 +524,9 @@ async function fetchPremierLeagueData() {
             .filter(t => t.points > threshold)
             .map(t => t.id);
 
-        return { qualifyingTeamIds, allEnglishTeamIds, error: false };
+        const result = { qualifyingTeamIds, allEnglishTeamIds, error: false };
+        setCache(cacheKey, result);
+        return result;
     } catch (error) {
         console.error('Error fetching standings:', error);
         return { qualifyingTeamIds: [], allEnglishTeamIds: [], error: true };
@@ -523,6 +541,10 @@ async function fetchQualifyingTeams() {
 
 // Fetch NBA top tier teams (top 6 by wins in each conference)
 async function fetchNBATopTierTeams() {
+    const cacheKey = 'standings-nba';
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     try {
         const response = await fetch(STANDINGS_URLS['nba']);
         if (!response.ok) {
@@ -559,7 +581,9 @@ async function fetchNBATopTierTeams() {
             topTierTeamIds.push(...topTeams.map(t => t.id));
         }
 
-        return { topTierTeamIds, error: false };
+        const result = { topTierTeamIds, error: false };
+        setCache(cacheKey, result);
+        return result;
     } catch (error) {
         console.error('Error fetching NBA standings:', error);
         return { topTierTeamIds: [], error: true };
@@ -568,6 +592,10 @@ async function fetchNBATopTierTeams() {
 
 // Fetch NHL top tier teams (top 8 by wins in each conference)
 async function fetchNHLTopTierTeams() {
+    const cacheKey = 'standings-nhl';
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     try {
         const response = await fetch(STANDINGS_URLS['nhl']);
         if (!response.ok) {
@@ -604,7 +632,9 @@ async function fetchNHLTopTierTeams() {
             topTierTeamIds.push(...topTeams.map(t => t.id));
         }
 
-        return { topTierTeamIds, error: false };
+        const result = { topTierTeamIds, error: false };
+        setCache(cacheKey, result);
+        return result;
     } catch (error) {
         console.error('Error fetching NHL standings:', error);
         return { topTierTeamIds: [], error: true };
@@ -1153,4 +1183,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up auto-refresh
     setInterval(loadSchedules, REFRESH_INTERVAL);
+
+    // Manual refresh button clears cache and reloads
+    document.getElementById('manual-refresh-btn').addEventListener('click', () => {
+        clearAllCache();
+        loadSchedules();
+    });
 });
