@@ -513,10 +513,13 @@ function renderGamesTable(games, tableId) {
         ` : '';
 
         // Format matchup: show both teams, bold the favorite team
+        // For big games, add hover tooltips showing team categories
         let matchupText;
         if (game.isBigGame) {
-            // Big games already have "Team A v. Team B" format, no bolding (neutral game)
-            matchupText = game.opponent;
+            // Big games: wrap team names with category tooltips
+            const homeLabel = getCategoryLabel(game.homeTeamCategory);
+            const awayLabel = getCategoryLabel(game.awayTeamCategory);
+            matchupText = `<span class="team-name-hover" data-category="${homeLabel}">${game.homeTeamName}</span> v. <span class="team-name-hover" data-category="${awayLabel}">${game.awayTeamName}</span>`;
         } else {
             // Regular games: show "Home vs Away" with favorite (teamName) bolded
             if (game.isHome) {
@@ -861,6 +864,8 @@ async function fetchBigGamesForCalendar() {
                     teamName: 'Big Game',
                     league: config.league,
                     opponent: `${homeTeamDisplayName} v. ${awayTeamDisplayName}`,
+                    homeTeamName: homeTeamDisplayName,
+                    awayTeamName: awayTeamDisplayName,
                     isHome: true,
                     isCompleted: isCompleted,
                     score: null,

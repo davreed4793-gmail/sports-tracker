@@ -878,12 +878,12 @@ function renderBigGamesCard(games) {
                 <div class="big-game-matchup">
                     <div class="big-game-team">
                         ${game.homeTeam.logo ? `<img src="${game.homeTeam.logo}" alt="" class="big-game-logo">` : ''}
-                        <span>${game.homeTeam.name}</span>
+                        <span class="team-name-hover" data-category="${getCategoryLabel(game.homeTeamCategory)}">${game.homeTeam.name}</span>
                     </div>
                     <span class="big-game-at">v.</span>
                     <div class="big-game-team">
                         ${game.awayTeam.logo ? `<img src="${game.awayTeam.logo}" alt="" class="big-game-logo">` : ''}
-                        <span>${game.awayTeam.name}</span>
+                        <span class="team-name-hover" data-category="${getCategoryLabel(game.awayTeamCategory)}">${game.awayTeam.name}</span>
                     </div>
                 </div>
                 ${resultHtml}

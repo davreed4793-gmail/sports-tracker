@@ -297,6 +297,19 @@ const GAME_CATEGORY_DESCRIPTIONS = {
     [GAME_CATEGORIES.HOUSE_DIVIDED]: 'Two of your favorites playing each other'
 };
 
+// Team Category Display Labels (for hover tooltips)
+const TEAM_CATEGORY_LABELS = {
+    [TEAM_LEVELS.THINKIN_SUPEY]: "Thinkin' Supey",
+    [TEAM_LEVELS.YA_NEVER_KNOW]: "Ya Never Know",
+    [TEAM_LEVELS.TOP_TIER]: "Top Tier",
+    [TEAM_LEVELS.FAVORITE]: "Favorite"
+};
+
+// Get display label for a team category (returns "Normie" for regular teams)
+function getCategoryLabel(category) {
+    return TEAM_CATEGORY_LABELS[category] || "Normie";
+}
+
 // ============================================
 // Preseason Settings (localStorage)
 // ============================================
