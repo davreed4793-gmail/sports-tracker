@@ -64,6 +64,11 @@ const STANDINGS_URLS = {
 
 const BIG_GAME_SETTINGS_KEY = 'sports-tracker-big-game-settings';
 
+// Schema version - increment when adding new categories or competitions
+// Version 1: Initial per-competition settings
+// Version 2: Added 'playoff-preview' category
+const SETTINGS_SCHEMA_VERSION = 2;
+
 // Competition keys to display names mapping
 const COMPETITIONS = {
     'premier-league': 'Premier League',
@@ -79,6 +84,7 @@ const ALL_CATEGORIES = ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-
 
 // Default: all categories enabled for all competitions
 const DEFAULT_BIG_GAME_SETTINGS = {
+    schemaVersion: SETTINGS_SCHEMA_VERSION,
     perCompetition: {
         'premier-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
         'champions-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
@@ -99,6 +105,7 @@ function getBigGameSettings() {
             // Migration: if old format (enabledCategories at root), migrate to perCompetition
             if (parsed.enabledCategories && !parsed.perCompetition) {
                 const migratedSettings = {
+                    schemaVersion: SETTINGS_SCHEMA_VERSION,
                     perCompetition: {}
                 };
                 // Apply old enabledCategories to ALL competitions
@@ -110,21 +117,36 @@ function getBigGameSettings() {
                 return migratedSettings;
             }
 
-            // Ensure all competitions exist AND have all categories
+            // Only run migrations if schema version is outdated
             if (parsed.perCompetition) {
+                const savedVersion = parsed.schemaVersion || 1;
+                let needsSave = false;
+
+                // Ensure all competitions exist (add new competitions with all categories)
                 for (const competition of Object.keys(COMPETITIONS)) {
                     if (!parsed.perCompetition[competition]) {
-                        // New competition - add all categories
                         parsed.perCompetition[competition] = [...ALL_CATEGORIES];
-                    } else {
-                        // Existing competition - add any missing categories
-                        for (const category of ALL_CATEGORIES) {
-                            if (!parsed.perCompetition[competition].includes(category)) {
-                                parsed.perCompetition[competition].push(category);
-                            }
-                        }
+                        needsSave = true;
                     }
                 }
+
+                // Version-based migrations for new categories
+                if (savedVersion < 2) {
+                    // Version 2 added 'playoff-preview' - add to all competitions
+                    for (const competition of Object.keys(COMPETITIONS)) {
+                        if (!parsed.perCompetition[competition].includes('playoff-preview')) {
+                            parsed.perCompetition[competition].push('playoff-preview');
+                        }
+                    }
+                    needsSave = true;
+                }
+
+                // Update version and save if migrations ran
+                if (needsSave || savedVersion < SETTINGS_SCHEMA_VERSION) {
+                    parsed.schemaVersion = SETTINGS_SCHEMA_VERSION;
+                    saveBigGameSettings(parsed);
+                }
+
                 return parsed;
             }
         }
@@ -178,8 +200,10 @@ function computeIsBigGame(gameCategory) {
 
 // Categorize a single team based on top tier status and favorite status
 function categorizeTeam(teamId, topTierTeamIds, favoriteTeamIds) {
-    const isTopTier = topTierTeamIds.includes(teamId);
-    const isFavorite = favoriteTeamIds.includes(teamId);
+    // Convert to string for comparison (ESPN API may return numbers or strings)
+    const teamIdStr = String(teamId);
+    const isTopTier = topTierTeamIds.map(String).includes(teamIdStr);
+    const isFavorite = favoriteTeamIds.map(String).includes(teamIdStr);
 
     if (isFavorite && isTopTier) {
         return TEAM_LEVELS.THINKIN_SUPEY;

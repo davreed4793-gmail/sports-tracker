@@ -113,9 +113,18 @@ function getFavoriteTeamIds() {
     return getFavoriteTeams().map(t => t.id);
 }
 
-// Check if a team ID matches any favorite team
-function isFavoriteTeamId(teamId) {
-    return getFavoriteTeamIds().includes(teamId);
+// Get favorite team IDs filtered by sport (ESPN IDs are only unique within a sport)
+function getFavoriteTeamIdsBySport(sport) {
+    return getFavoriteTeams()
+        .filter(t => t.sport === sport)
+        .map(t => t.id);
+}
+
+// Check if a team ID matches any favorite team for a given sport
+function isFavoriteTeamId(teamId, sport) {
+    // Convert to string for comparison (ESPN API may return numbers or strings)
+    const favoriteIds = getFavoriteTeamIdsBySport(sport);
+    return favoriteIds.map(String).includes(String(teamId));
 }
 
 // Get the appropriate team color (checks override list)
@@ -686,11 +695,12 @@ async function fetchNHLTopTierTeams() {
 
 // Helper: Check if a team ID matches any in a list (more reliable than name matching)
 function teamIdMatchesList(teamId, teamIdList) {
-    return teamIdList.includes(teamId);
+    // Convert to string for comparison (ESPN API may return numbers or strings)
+    return teamIdList.map(String).includes(String(teamId));
 }
 
-// Fetch big games from all competitions - ONLY those NOT involving favorite teams
-// (Favorite team big games already appear in regular schedule)
+// Fetch big games from all competitions based on user's Big Game Settings
+// Includes games involving favorites (Beat Em Off, Playoff Preview, etc.) and Rob Lowe games
 // Returns { games: [], error: boolean }
 async function fetchBigGamesForCalendar() {
     const dates = getUpcomingDates(DAYS_AHEAD);
@@ -720,8 +730,6 @@ async function fetchBigGamesForCalendar() {
         'nhl': nhlData.topTierTeamIds
     };
 
-    const favoriteTeamIds = getFavoriteTeamIds();
-
     // Process each competition
     for (const [, config] of Object.entries(BIG_GAMES_CONFIG)) {
         const fetchPromises = dates.map(date => fetchScoreboardForDate(config.espnPath, date));
@@ -729,6 +737,9 @@ async function fetchBigGamesForCalendar() {
 
         // Get the top tier list for this league
         const topTierTeamIds = topTierByLeague[config.league] || [];
+
+        // Get favorite team IDs filtered by sport (ESPN IDs are only unique within a sport)
+        const favoriteTeamIds = getFavoriteTeamIdsBySport(config.sport);
 
         for (const result of results) {
             if (result.error) {
@@ -744,40 +755,47 @@ async function fetchBigGamesForCalendar() {
                 const homeTeamId = homeTeam?.team?.id || homeTeam?.id || '';
                 const awayTeamId = awayTeam?.team?.id || awayTeam?.id || '';
 
+                // A game qualifies if:
+                // 1. It involves at least one favorite team (Beat Em Off, Playoff Preview, etc.)
+                // 2. OR both teams are top tier (Rob Lowe)
+                // For CL: also requires at least one English team if no favorites involved
+
+                const homeIsFavorite = isFavoriteTeamId(homeTeamId, config.sport);
+                const awayIsFavorite = isFavoriteTeamId(awayTeamId, config.sport);
+                const involvesFavorite = homeIsFavorite || awayIsFavorite;
+
+                const homeIsTopTier = teamIdMatchesList(homeTeamId, topTierTeamIds);
+                const awayIsTopTier = teamIdMatchesList(awayTeamId, topTierTeamIds);
+                const bothTopTier = homeIsTopTier && awayIsTopTier;
+
                 let qualifies = false;
 
-                // Check qualification based on competition type
-                if (config.requiresEnglishTeam) {
-                    // Champions League: at least one English team
-                    const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
-                    const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
-                    qualifies = homeIsEnglish || awayIsEnglish;
-                } else if (config.usePremierLeagueThreshold) {
-                    // FA Cup / League Cup: both teams must meet PL threshold
-                    const homeQualifies = teamIdMatchesList(homeTeamId, topTierTeamIds);
-                    const awayQualifies = teamIdMatchesList(awayTeamId, topTierTeamIds);
-                    qualifies = homeQualifies && awayQualifies;
-                } else if (config.useNBAThreshold || config.useNHLThreshold) {
-                    // NBA / NHL: both teams must be in top tier
-                    const homeQualifies = teamIdMatchesList(homeTeamId, topTierTeamIds);
-                    const awayQualifies = teamIdMatchesList(awayTeamId, topTierTeamIds);
-                    qualifies = homeQualifies && awayQualifies;
-                } else {
-                    // Premier League: both teams must meet threshold
-                    const homeQualifies = teamIdMatchesList(homeTeamId, topTierTeamIds);
-                    const awayQualifies = teamIdMatchesList(awayTeamId, topTierTeamIds);
-                    qualifies = homeQualifies && awayQualifies;
+                if (involvesFavorite) {
+                    // Game involves a favorite - qualifies for potential Beat Em Off, etc.
+                    if (config.requiresEnglishTeam) {
+                        // CL: favorite must be English team
+                        const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
+                        const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
+                        qualifies = (homeIsFavorite && homeIsEnglish) || (awayIsFavorite && awayIsEnglish);
+                    } else {
+                        qualifies = true;
+                    }
+                } else if (bothTopTier) {
+                    // Rob Lowe: two top tier teams (neither is favorite)
+                    if (config.requiresEnglishTeam) {
+                        // CL: at least one English team
+                        const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
+                        const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
+                        qualifies = homeIsEnglish || awayIsEnglish;
+                    } else {
+                        qualifies = true;
+                    }
                 }
 
                 if (!qualifies) continue;
 
                 const homeTeamDisplayName = homeTeam?.team?.displayName || 'TBD';
                 const awayTeamDisplayName = awayTeam?.team?.displayName || 'TBD';
-
-                // *** KEY FILTER: Skip if either team is a favorite (by ID) ***
-                // These games already show in the regular schedule
-                const involvesFavorite = isFavoriteTeamId(homeTeamId) || isFavoriteTeamId(awayTeamId);
-                if (involvesFavorite) continue;
 
                 const competition = event.competitions?.[0];
                 const gameDate = new Date(event.date);
@@ -884,41 +902,16 @@ async function loadSchedules() {
         // Track errors for each category
         const errors = [];
 
-        // Fetch all team games and big games in parallel
-        const myTeams = getFavoriteTeams();
-        const gamePromises = myTeams.map(team => fetchTeamGames(team));
-        const bigGamesPromise = fetchBigGamesForCalendar();
-
-        const [results, bigGamesResult] = await Promise.all([
-            Promise.all(gamePromises),
-            bigGamesPromise
-        ]);
-
-        // Check for team fetch errors
-        for (const teamResult of results) {
-            if (teamResult.error) {
-                errors.push(`${teamResult.team.name} schedule may be incomplete`);
-            }
-        }
+        // Fetch big games only (already filtered by user's big game settings)
+        const bigGamesResult = await fetchBigGamesForCalendar();
 
         // Check for big games fetch error
         if (bigGamesResult.error) {
             errors.push('Big Games data may be incomplete');
         }
 
-        // Flatten and parse all team games
-        const allGames = [];
-        for (const teamResult of results) {
-            for (const { event, team } of teamResult.events) {
-                const game = parseEvent(event, team);
-                if (game) {
-                    allGames.push(game);
-                }
-            }
-        }
-
-        // Add big games (already filtered to exclude favorite team games)
-        allGames.push(...bigGamesResult.games);
+        // Use big games directly (already filtered by isBigGame based on user settings)
+        const allGames = [...bigGamesResult.games];
 
         // Remove duplicates using game ID (reliable ESPN identifier)
         const seenGames = new Set();
