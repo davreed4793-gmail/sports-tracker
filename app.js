@@ -571,32 +571,27 @@ async function fetchNHLTopTierTeams() {
 
         // Each child is a conference (Eastern, Western)
         for (const conference of children) {
-            // NHL has divisions within conferences, need to aggregate
-            const confChildren = conference.children || [];
-            const allTeams = [];
+            const standings = conference.standings || {};
+            const entries = standings.entries || [];
 
-            for (const division of confChildren) {
-                const standings = division.standings || {};
-                const entries = standings.entries || [];
-
-                for (const entry of entries) {
-                    const teamId = entry.team?.id || '';
-                    const stats = entry.stats || [];
-                    let wins = 0;
-                    for (const stat of stats) {
-                        if (stat.name === 'wins') {
-                            wins = parseInt(stat.value) || 0;
-                            break;
-                        }
+            // Extract team ID and wins
+            const teams = entries.map(entry => {
+                const teamId = entry.team?.id || '';
+                const stats = entry.stats || [];
+                let wins = 0;
+                for (const stat of stats) {
+                    if (stat.name === 'wins') {
+                        wins = parseInt(stat.value) || 0;
+                        break;
                     }
-                    allTeams.push({ id: teamId, wins });
                 }
-            }
+                return { id: teamId, wins };
+            });
 
             // Sort by wins descending and take top 8
-            allTeams.sort((a, b) => b.wins - a.wins);
+            teams.sort((a, b) => b.wins - a.wins);
             const topN = TOP_TIER_THRESHOLDS['nhl'].topN;
-            const topTeams = allTeams.slice(0, topN);
+            const topTeams = teams.slice(0, topN);
             topTierTeamIds.push(...topTeams.map(t => t.id));
         }
 
@@ -881,6 +876,9 @@ function parseGames(teamData) {
     const thirtyDaysFromNow = new Date(now);
     thirtyDaysFromNow.setDate(now.getDate() + DAYS_AHEAD);
 
+    // Check preseason setting
+    const showPreseason = getShowPreseason();
+
     const games = events
         .map(event => parseEvent(event, team))
         .filter(game => game !== null)
@@ -890,7 +888,15 @@ function parseGames(teamData) {
     const upcoming = games.filter(g => {
         const isUpcoming = !g.isCompleted || g.date > new Date(now - 2*60*60*1000);
         const isWithinRange = g.date <= thirtyDaysFromNow;
-        return isUpcoming && isWithinRange;
+
+        // Filter out preseason games if setting is off
+        const isPreseason = g.seasonLabel && (
+            g.seasonLabel === 'Preseason' ||
+            g.seasonLabel === 'Spring Training'
+        );
+        const passesPreseasonFilter = showPreseason || !isPreseason;
+
+        return isUpcoming && isWithinRange && passesPreseasonFilter;
     });
 
     // Only show future games (or games in progress)
@@ -1018,38 +1024,15 @@ function renderErrorFooter(errors) {
     `;
 }
 
-// Get the number of columns in a CSS grid container
-function getGridColumnCount(container) {
-    const gridStyle = window.getComputedStyle(container);
-    const columns = gridStyle.gridTemplateColumns.split(' ').length;
-    return columns;
+// Refresh indicator helpers
+function showRefreshIndicator() {
+    const indicator = document.getElementById('refresh-indicator');
+    if (indicator) indicator.style.display = 'block';
 }
 
-// Calculate how many columns Big Games card should span to fill the last row
-function calculateBigGamesSpan(teamCount, columnCount) {
-    const teamsInLastRow = teamCount % columnCount;
-    let span;
-    if (teamsInLastRow === 0) {
-        // Teams fill their rows completely, Big Games gets own row
-        span = Math.min(3, columnCount);
-    } else {
-        span = columnCount - teamsInLastRow;
-    }
-    // Clamp between 1 and 3
-    return Math.max(1, Math.min(3, span));
-}
-
-// Update Big Games card span based on current grid layout
-function updateBigGamesSpan() {
-    const container = document.getElementById('schedules');
-    const bigGamesCard = container.querySelector('.big-games-card');
-    if (!bigGamesCard) return;
-
-    const columnCount = getGridColumnCount(container);
-    const teamCount = getFavoriteTeams().length;
-    const span = calculateBigGamesSpan(teamCount, columnCount);
-
-    bigGamesCard.style.gridColumn = `span ${span}`;
+function hideRefreshIndicator() {
+    const indicator = document.getElementById('refresh-indicator');
+    if (indicator) indicator.style.display = 'none';
 }
 
 // Main function to load all schedules
@@ -1057,8 +1040,14 @@ async function loadSchedules() {
     const container = document.getElementById('schedules');
     const updateTime = document.getElementById('update-time');
 
-    // Show loading state
-    container.innerHTML = '<p class="loading">Loading schedules...</p>';
+    // Check if this is a refresh (content already exists) vs initial load
+    const isRefresh = container.querySelector('.team-card') !== null;
+    if (isRefresh) {
+        showRefreshIndicator();
+    } else {
+        // Show loading state only on initial load
+        container.innerHTML = '<p class="loading">Loading schedules...</p>';
+    }
 
     try {
         // Track errors for each category
@@ -1103,15 +1092,28 @@ async function loadSchedules() {
         // Clean up old Must Watch IDs
         cleanupOldMustWatch(allGameIds);
 
-        // Render team cards first, then big games card at the end (bottom right)
+        // Filter big games to next 7 days only
+        const now = new Date();
+        const sevenDaysFromNow = new Date(now);
+        sevenDaysFromNow.setDate(now.getDate() + 7);
+        const next7DaysBigGames = bigGamesResult.games.filter(g => g.date <= sevenDaysFromNow);
+
+        // Render team cards in left columns, big games in right column
         const teamCardsHtml = parsedSchedules.map(renderTeamCard).join('');
-        const bigGamesHtml = renderBigGamesCard(bigGamesResult.games);
+        const bigGamesHtml = renderBigGamesCard(next7DaysBigGames);
         const errorHtml = renderErrorFooter(errors);
 
-        container.innerHTML = teamCardsHtml + bigGamesHtml + errorHtml;
-
-        // Update Big Games card span for symmetrical layout
-        updateBigGamesSpan();
+        container.innerHTML = `
+            <div class="teams-column">
+                <h3 class="column-header">Next Month</h3>
+                ${teamCardsHtml}
+            </div>
+            <div class="big-games-column">
+                <h3 class="column-header">Next Week</h3>
+                ${bigGamesHtml}
+            </div>
+            ${errorHtml}
+        `;
 
         // Update timestamp
         updateTime.textContent = new Date().toLocaleTimeString('en-US', {
@@ -1119,9 +1121,12 @@ async function loadSchedules() {
             minute: '2-digit'
         });
 
+        hideRefreshIndicator();
+
     } catch (error) {
         console.error('Error loading schedules:', error);
         container.innerHTML = '<p class="loading">Error loading schedules. Please refresh.</p>';
+        hideRefreshIndicator();
     }
 }
 
@@ -1140,7 +1145,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up auto-refresh
     setInterval(loadSchedules, REFRESH_INTERVAL);
-
-    // Update Big Games span on window resize
-    window.addEventListener('resize', updateBigGamesSpan);
 });

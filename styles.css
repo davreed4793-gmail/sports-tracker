@@ -32,11 +32,67 @@ header h1 {
     font-size: 0.9rem;
 }
 
-/* Main content */
+/* Main content - default grid */
 main {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
+}
+
+/* By Team page layout - two columns for teams, one column for big games */
+#schedules {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.teams-column {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    align-content: start;
+    align-self: start;
+}
+
+/* Column section headers */
+.column-header {
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.1rem;
+    color: #666;
+    text-align: center;
+    margin: 0 0 15px 0;
+    grid-column: 1 / -1;  /* Span all columns in teams grid */
+}
+
+.big-games-column {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.big-games-column .big-games-card {
+    /* Reset any dynamic spanning when in the dedicated column */
+    grid-column: auto;
+}
+
+/* Responsive: stack columns on smaller screens */
+@media (max-width: 900px) {
+    #schedules {
+        grid-template-columns: 1fr;
+    }
+
+    .teams-column {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .big-games-column {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+    }
 }
 
 .loading {
@@ -382,9 +438,9 @@ main {
     border-left: 3px solid #f59e0b;
 }
 
-/* Big Games card - span is set dynamically by JavaScript */
+/* Big Games card */
 .big-games-card {
-    /* grid-column: span dynamically calculated in app.js */
+    /* No longer needs dynamic spanning - always in dedicated column */
 }
 
 .team-header.big-games {
@@ -441,10 +497,6 @@ main {
 }
 
 @media (max-width: 600px) {
-    .big-games-card {
-        /* grid-column: span dynamically calculated in app.js */
-    }
-
     .big-game-matchup {
         flex-direction: column;
         align-items: flex-start;
@@ -549,6 +601,7 @@ footer {
 
 /* Settings page */
 #settings {
+    display: block;  /* Override main's grid layout */
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -965,4 +1018,70 @@ footer {
     .category-desc {
         font-size: 0.8rem;
     }
+}
+
+/* Display Options toggles */
+.display-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toggle-setting {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.toggle-setting:hover {
+    background: #e9ecef;
+}
+
+.toggle-setting input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: #28a745;
+}
+
+.toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.toggle-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.toggle-desc {
+    font-size: 0.85em;
+    color: #666;
+}
+
+/* Refresh indicator */
+.refresh-indicator {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    z-index: 100;
+    opacity: 0.9;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.9; }
+    50% { opacity: 0.6; }
 }

@@ -552,6 +552,20 @@ function setupExpandCollapseButtons() {
     }
 }
 
+// Initialize display options (preseason toggle, etc.)
+function initDisplayOptions() {
+    const preseasonCheckbox = document.getElementById('show-preseason');
+    if (!preseasonCheckbox) return;
+
+    // Set initial state from localStorage
+    preseasonCheckbox.checked = getShowPreseason();
+
+    // Add change handler
+    preseasonCheckbox.addEventListener('change', () => {
+        setShowPreseason(preseasonCheckbox.checked);
+    });
+}
+
 // Initialize the settings page
 async function init() {
     // Render currently selected teams
@@ -565,6 +579,9 @@ async function init() {
 
     // Initialize big game settings
     initBigGameSettings();
+
+    // Initialize display options
+    initDisplayOptions();
 
     // Fetch and render teams for each league in parallel
     const leagueKeys = Object.keys(LEAGUES);

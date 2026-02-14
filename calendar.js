@@ -653,32 +653,27 @@ async function fetchNHLTopTierTeams() {
 
         // Each child is a conference (Eastern, Western)
         for (const conference of children) {
-            // NHL has divisions within conferences, need to aggregate
-            const confChildren = conference.children || [];
-            const allTeams = [];
+            const standings = conference.standings || {};
+            const entries = standings.entries || [];
 
-            for (const division of confChildren) {
-                const standings = division.standings || {};
-                const entries = standings.entries || [];
-
-                for (const entry of entries) {
-                    const teamId = entry.team?.id || '';
-                    const stats = entry.stats || [];
-                    let wins = 0;
-                    for (const stat of stats) {
-                        if (stat.name === 'wins') {
-                            wins = parseInt(stat.value) || 0;
-                            break;
-                        }
+            // Extract team ID and wins
+            const teams = entries.map(entry => {
+                const teamId = entry.team?.id || '';
+                const stats = entry.stats || [];
+                let wins = 0;
+                for (const stat of stats) {
+                    if (stat.name === 'wins') {
+                        wins = parseInt(stat.value) || 0;
+                        break;
                     }
-                    allTeams.push({ id: teamId, wins });
                 }
-            }
+                return { id: teamId, wins };
+            });
 
             // Sort by wins descending and take top 8
-            allTeams.sort((a, b) => b.wins - a.wins);
+            teams.sort((a, b) => b.wins - a.wins);
             const topN = TOP_TIER_THRESHOLDS['nhl'].topN;
-            const topTeams = allTeams.slice(0, topN);
+            const topTeams = teams.slice(0, topN);
             topTierTeamIds.push(...topTeams.map(t => t.id));
         }
 
@@ -860,12 +855,30 @@ function renderErrorFooter(errors) {
     `;
 }
 
+// Refresh indicator helpers
+function showRefreshIndicator() {
+    const indicator = document.getElementById('refresh-indicator');
+    if (indicator) indicator.style.display = 'block';
+}
+
+function hideRefreshIndicator() {
+    const indicator = document.getElementById('refresh-indicator');
+    if (indicator) indicator.style.display = 'none';
+}
+
 // Main function to load all schedules
 async function loadSchedules() {
     const container = document.getElementById('calendar');
     const updateTime = document.getElementById('update-time');
 
-    container.innerHTML = '<p class="loading">Loading schedules...</p>';
+    // Check if this is a refresh (content already exists) vs initial load
+    const isRefresh = container.querySelector('.calendar-table') !== null;
+    if (isRefresh) {
+        showRefreshIndicator();
+    } else {
+        // Show loading state only on initial load
+        container.innerHTML = '<p class="loading">Loading schedules...</p>';
+    }
 
     try {
         // Track errors for each category
@@ -925,9 +938,22 @@ async function loadSchedules() {
         const now = new Date();
         const thirtyDaysFromNow = new Date(now);
         thirtyDaysFromNow.setDate(now.getDate() + DAYS_AHEAD);
-        const futureGames = uniqueGames.filter(g =>
-            g.date > new Date(now - 2*60*60*1000) && g.date <= thirtyDaysFromNow
-        );
+
+        // Check preseason setting
+        const showPreseason = getShowPreseason();
+
+        const futureGames = uniqueGames.filter(g => {
+            const isWithinWindow = g.date > new Date(now - 2*60*60*1000) && g.date <= thirtyDaysFromNow;
+
+            // Filter out preseason games if setting is off
+            const isPreseason = g.seasonLabel && (
+                g.seasonLabel === 'Preseason' ||
+                g.seasonLabel === 'Spring Training'
+            );
+            const passesPreseasonFilter = showPreseason || !isPreseason;
+
+            return isWithinWindow && passesPreseasonFilter;
+        });
 
         // Split into next 7 days and later
         const sevenDaysFromNow = new Date(now);
@@ -956,9 +982,12 @@ async function loadSchedules() {
             minute: '2-digit'
         });
 
+        hideRefreshIndicator();
+
     } catch (error) {
         console.error('Error loading schedules:', error);
         container.innerHTML = '<p class="loading">Error loading schedules. Please refresh.</p>';
+        hideRefreshIndicator();
     }
 }
 

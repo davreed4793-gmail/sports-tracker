@@ -75,19 +75,36 @@
             </section>
         </div>
 
-        <section class="settings-section">
-            <h2>Big Game Settings</h2>
-            <p class="settings-description">Select which game categories should be highlighted as "Big Games" for each competition.</p>
+        <div class="settings-row">
+            <section class="settings-section">
+                <h2>Big Game Settings</h2>
+                <p class="settings-description">Select which game categories should be highlighted as "Big Games" for each competition.</p>
 
-            <div class="competition-controls">
-                <button id="expand-all-btn" class="control-btn">Expand All</button>
-                <button id="collapse-all-btn" class="control-btn">Collapse All</button>
-            </div>
+                <div class="competition-controls">
+                    <button id="expand-all-btn" class="control-btn">Expand All</button>
+                    <button id="collapse-all-btn" class="control-btn">Collapse All</button>
+                </div>
 
-            <div id="big-game-categories" class="competition-sections">
-                <!-- Per-competition sections generated dynamically by settings.js -->
-            </div>
-        </section>
+                <div id="big-game-categories" class="competition-sections">
+                    <!-- Per-competition sections generated dynamically by settings.js -->
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h2>Display Options</h2>
+                <p class="settings-description">Control how games are displayed across all views.</p>
+
+                <div class="display-options">
+                    <label class="toggle-setting">
+                        <input type="checkbox" id="show-preseason" checked>
+                        <span class="toggle-text">
+                            <span class="toggle-label">Show Preseason Games</span>
+                            <span class="toggle-desc">Include preseason, spring training, and exhibition games</span>
+                        </span>
+                    </label>
+                </div>
+            </section>
+        </div>
     </main>
 
     <footer>

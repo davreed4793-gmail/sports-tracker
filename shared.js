@@ -253,3 +253,20 @@ const GAME_CATEGORY_DESCRIPTIONS = {
     [GAME_CATEGORIES.BEAT_EM_OFF]: 'Your favorites vs regular teams',
     [GAME_CATEGORIES.HOUSE_DIVIDED]: 'Two of your favorites playing each other'
 };
+
+// ============================================
+// Preseason Settings (localStorage)
+// ============================================
+
+const PRESEASON_SETTINGS_KEY = 'sports-tracker-show-preseason';
+
+// Get preseason visibility setting (default: true - show preseason games)
+function getShowPreseason() {
+    const saved = localStorage.getItem(PRESEASON_SETTINGS_KEY);
+    return saved === null ? true : saved === 'true';
+}
+
+// Set preseason visibility setting
+function setShowPreseason(value) {
+    localStorage.setItem(PRESEASON_SETTINGS_KEY, String(value));
+}
