@@ -433,6 +433,10 @@ function parseEvent(event, team) {
 const MUST_WATCH_KEY = 'sports-tracker-must-watch';
 
 function getMustWatchGames() {
+    // In watch party mode, use the shared mustWatch list
+    if (watchPartyMode && watchPartyMode.mustWatch) {
+        return watchPartyMode.mustWatch;
+    }
     try {
         const saved = localStorage.getItem(MUST_WATCH_KEY);
         return saved ? JSON.parse(saved) : [];
@@ -465,6 +469,9 @@ function isMustWatch(gameId) {
 
 // Clean up old Must Watch IDs that no longer correspond to any loaded games
 function cleanupOldMustWatch(currentGameIds) {
+    // Skip cleanup in watch party mode (don't modify local storage based on watch party data)
+    if (watchPartyMode) return;
+
     const mustWatch = getMustWatchGames();
     const validIds = mustWatch.filter(id => currentGameIds.includes(id));
     if (validIds.length !== mustWatch.length) {
@@ -853,15 +860,17 @@ function renderBigGamesCard(games) {
         }
 
         // For favorite team games, show locked star (can't uncheck)
-        // For neutral big games, show toggleable star
+        // For neutral big games, show toggleable star (disabled in watch party mode)
+        const isDisabled = watchPartyMode ? 'disabled' : '';
         const mustWatchHtml = !game.isCompleted ? (
             game.involvesFavorite
                 ? `<span class="must-watch-icon must-watch-locked" title="Auto-marked: involves your team">★</span>`
-                : `<label class="must-watch-label ${mustWatch ? 'checked' : ''}">
+                : `<label class="must-watch-label ${mustWatch ? 'checked' : ''} ${watchPartyMode ? 'watch-party-disabled' : ''}">
                     <input type="checkbox"
                            class="must-watch-checkbox"
                            data-game-id="${game.id}"
-                           ${mustWatch ? 'checked' : ''}>
+                           ${mustWatch ? 'checked' : ''}
+                           ${isDisabled}>
                     <span class="must-watch-icon">${mustWatch ? '★' : '☆'}</span>
                 </label>`
         ) : '';
@@ -1002,12 +1011,14 @@ function renderTeamCard(teamData) {
                 seasonLabelHtml = `<span class="season-label">${game.seasonLabel}</span>`;
             }
 
+            const isDisabled = watchPartyMode ? 'disabled' : '';
             const mustWatchHtml = !game.isCompleted ? `
-                <label class="must-watch-label ${mustWatch ? 'checked' : ''}">
+                <label class="must-watch-label ${mustWatch ? 'checked' : ''} ${watchPartyMode ? 'watch-party-disabled' : ''}">
                     <input type="checkbox"
                            class="must-watch-checkbox"
                            data-game-id="${game.id}"
-                           ${mustWatch ? 'checked' : ''}>
+                           ${mustWatch ? 'checked' : ''}
+                           ${isDisabled}>
                     <span class="must-watch-icon">${mustWatch ? '★' : '☆'}</span>
                 </label>
             ` : '';
@@ -1081,9 +1092,9 @@ async function loadSchedules() {
     const container = document.getElementById('schedules');
     const updateTime = document.getElementById('update-time');
 
-    // Check for Watch Party mode (shared URL)
+    // Check for Watch Party mode (session or URL)
     if (watchPartyMode === null) {
-        watchPartyMode = getWatchPartyFromURL();
+        watchPartyMode = getActiveWatchParty();
     }
 
     // Check if this is a refresh (content already exists) vs initial load
@@ -1102,7 +1113,12 @@ async function loadSchedules() {
         // Use watch party teams if in shared mode, otherwise use favorites
         let myTeams;
         if (watchPartyMode && watchPartyMode.teams) {
-            myTeams = parseWatchPartyTeams(watchPartyMode.teams, DEFAULT_TEAMS.concat(getFavoriteTeams()));
+            // New format: teams are full objects; old format: parseWatchPartyTeams handles both
+            myTeams = getWatchPartyTeams(watchPartyMode);
+            if (myTeams.length === 0) {
+                // Fallback for old format links
+                myTeams = parseWatchPartyTeams(watchPartyMode.teams, DEFAULT_TEAMS.concat(getFavoriteTeams()));
+            }
         } else {
             myTeams = getFavoriteTeams();
         }
@@ -1154,13 +1170,15 @@ async function loadSchedules() {
         const bigGamesHtml = renderBigGamesCard(next7DaysBigGames);
         const errorHtml = renderErrorFooter(errors);
 
-        // Watch party banner
-        const watchPartyBanner = watchPartyMode
-            ? `<div class="watch-party-banner">Viewing shared Watch Party<a href="${window.location.pathname}">View your own</a></div>`
-            : '';
+        // Watch party banner (render in dedicated container, not inside grid)
+        const bannerContainer = document.getElementById('watch-party-banner-container');
+        if (bannerContainer) {
+            bannerContainer.innerHTML = watchPartyMode
+                ? `<div class="watch-party-banner">Viewing shared Watch Party<a href="index.html" onclick="clearWatchPartySession(); window.location.href='index.html'; return false;">View your own</a></div>`
+                : '';
+        }
 
         container.innerHTML = `
-            ${watchPartyBanner}
             <div class="teams-column">
                 <h3 class="column-header">Next Month</h3>
                 ${teamCardsHtml}
@@ -1210,12 +1228,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Share button generates URL and copies to clipboard
+    // Always shares YOUR settings (not watch party's)
     document.getElementById('share-btn').addEventListener('click', async () => {
         const teams = getFavoriteTeams();
         const bigGameSettings = getBigGameSettings();
         const showPreseason = getShowPreseason();
+        // Get local must watch directly (bypass watch party check)
+        let mustWatch = [];
+        try {
+            const saved = localStorage.getItem(MUST_WATCH_KEY);
+            mustWatch = saved ? JSON.parse(saved) : [];
+        } catch (e) { /* ignore */ }
 
-        const url = generateWatchPartyURL(teams, bigGameSettings, showPreseason);
+        const url = generateWatchPartyURL(teams, bigGameSettings, showPreseason, mustWatch);
         if (url) {
             try {
                 await navigator.clipboard.writeText(url);

@@ -45,7 +45,16 @@ const DEFAULT_TEAMS = [
 ];
 
 // Get favorite teams from localStorage (or defaults)
+// In watch party mode, returns the shared teams
 function getFavoriteTeams() {
+    // Check for watch party mode first (global variable set in loadSchedules)
+    if (watchPartyMode && watchPartyMode.teams) {
+        const wpTeams = getWatchPartyTeams(watchPartyMode);
+        if (wpTeams.length > 0) {
+            return wpTeams;
+        }
+    }
+
     try {
         const saved = localStorage.getItem(FAVORITE_TEAMS_KEY);
         if (saved) {
@@ -410,6 +419,10 @@ function parseEvent(event, team) {
 const MUST_WATCH_KEY = 'sports-tracker-must-watch';
 
 function getMustWatchGames() {
+    // In watch party mode, use the shared mustWatch list
+    if (watchPartyMode && watchPartyMode.mustWatch) {
+        return watchPartyMode.mustWatch;
+    }
     try {
         const saved = localStorage.getItem(MUST_WATCH_KEY);
         return saved ? JSON.parse(saved) : [];
@@ -442,6 +455,9 @@ function isMustWatch(gameId) {
 
 // Clean up old Must Watch IDs that no longer correspond to any loaded games
 function cleanupOldMustWatch(currentGameIds) {
+    // Skip cleanup in watch party mode (don't modify local storage based on watch party data)
+    if (watchPartyMode) return;
+
     const mustWatch = getMustWatchGames();
     const validIds = mustWatch.filter(id => currentGameIds.includes(id));
     if (validIds.length !== mustWatch.length) {
@@ -502,12 +518,14 @@ function renderGamesTable(games, tableId) {
             resultHtml = `<span class="game-result ${game.score.winner ? 'win' : 'loss'}">${resultText} ${game.score.us}-${game.score.them}</span>`;
         }
 
+        const isDisabled = watchPartyMode ? 'disabled' : '';
         const mustWatchHtml = !game.isCompleted ? `
-            <label class="must-watch-label ${mustWatch ? 'checked' : ''}">
+            <label class="must-watch-label ${mustWatch ? 'checked' : ''} ${watchPartyMode ? 'watch-party-disabled' : ''}">
                 <input type="checkbox"
                        class="must-watch-checkbox"
                        data-game-id="${game.id}"
-                       ${mustWatch ? 'checked' : ''}>
+                       ${mustWatch ? 'checked' : ''}
+                       ${isDisabled}>
                 <span class="must-watch-icon">${mustWatch ? '★' : '☆'}</span>
             </label>
         ` : '';
@@ -928,9 +946,9 @@ async function loadSchedules() {
     const container = document.getElementById('calendar');
     const updateTime = document.getElementById('update-time');
 
-    // Check for Watch Party mode (shared URL)
+    // Check for Watch Party mode (session or URL)
     if (watchPartyMode === null) {
-        watchPartyMode = getWatchPartyFromURL();
+        watchPartyMode = getActiveWatchParty();
     }
 
     // Check if this is a refresh (content already exists) vs initial load
@@ -1002,13 +1020,15 @@ async function loadSchedules() {
         // Render both sections plus error footer if needed
         const errorHtml = renderErrorFooter(errors);
 
-        // Watch party banner
-        const watchPartyBanner = watchPartyMode
-            ? `<div class="watch-party-banner">Viewing shared Watch Party<a href="${window.location.pathname}">View your own</a></div>`
-            : '';
+        // Watch party banner (render in dedicated container, not inside main)
+        const bannerContainer = document.getElementById('watch-party-banner-container');
+        if (bannerContainer) {
+            bannerContainer.innerHTML = watchPartyMode
+                ? `<div class="watch-party-banner">Viewing shared Watch Party<a href="calendar.html" onclick="clearWatchPartySession(); window.location.href='calendar.html'; return false;">View your own</a></div>`
+                : '';
+        }
 
         container.innerHTML = `
-            ${watchPartyBanner}
             <section class="calendar-section">
                 <h2>Next 7 Days</h2>
                 ${renderGamesTable(next7Days, 'next-7-days')}
@@ -1056,12 +1076,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Share button generates URL and copies to clipboard
+    // Always shares YOUR settings (not watch party's)
     document.getElementById('share-btn').addEventListener('click', async () => {
         const teams = getFavoriteTeams();
         const bigGameSettings = getBigGameSettings();
         const showPreseason = getShowPreseason();
+        // Get local must watch directly (bypass watch party check)
+        let mustWatch = [];
+        try {
+            const saved = localStorage.getItem(MUST_WATCH_KEY);
+            mustWatch = saved ? JSON.parse(saved) : [];
+        } catch (e) { /* ignore */ }
 
-        const url = generateWatchPartyURL(teams, bigGameSettings, showPreseason);
+        const url = generateWatchPartyURL(teams, bigGameSettings, showPreseason, mustWatch);
         if (url) {
             try {
                 await navigator.clipboard.writeText(url);

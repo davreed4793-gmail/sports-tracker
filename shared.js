@@ -96,7 +96,18 @@ const DEFAULT_BIG_GAME_SETTINGS = {
 };
 
 // Get big game settings from localStorage with migration support
+// In watch party mode, returns the shared big game settings
 function getBigGameSettings() {
+    // Check for active watch party first
+    const watchParty = getWatchPartySession();
+    if (watchParty && watchParty.bigGames) {
+        // Return watch party big game settings in expected format
+        return {
+            schemaVersion: SETTINGS_SCHEMA_VERSION,
+            perCompetition: watchParty.bigGames
+        };
+    }
+
     try {
         const saved = localStorage.getItem(BIG_GAME_SETTINGS_KEY);
         if (saved) {
@@ -318,6 +329,12 @@ const PRESEASON_SETTINGS_KEY = 'sports-tracker-show-preseason';
 
 // Get preseason visibility setting (default: true - show preseason games)
 function getShowPreseason() {
+    // Check for active watch party first
+    const watchParty = getWatchPartySession();
+    if (watchParty && watchParty.showPreseason !== undefined) {
+        return watchParty.showPreseason;
+    }
+
     const saved = localStorage.getItem(PRESEASON_SETTINGS_KEY);
     return saved === null ? true : saved === 'true';
 }
@@ -408,11 +425,20 @@ function getWatchPartyFromURL() {
 }
 
 // Generate shareable URL with current settings
-function generateWatchPartyURL(teams, bigGameSettings, showPreseason) {
+function generateWatchPartyURL(teams, bigGameSettings, showPreseason, mustWatch) {
     const settings = {
-        teams: teams.map(t => `${t.sport}-${t.id}`),
+        // Include full team objects for recipient to use directly
+        teams: teams.map(t => ({
+            name: t.name,
+            id: t.id,
+            league: t.league,
+            sport: t.sport,
+            espnPath: t.espnPath,
+            logo: t.logo
+        })),
         bigGames: bigGameSettings.perCompetition,
-        showPreseason: showPreseason
+        showPreseason: showPreseason,
+        mustWatch: mustWatch || []
     };
     const encoded = encodeWatchParty(settings);
     if (!encoded) return null;
@@ -422,10 +448,29 @@ function generateWatchPartyURL(teams, bigGameSettings, showPreseason) {
     return url.toString();
 }
 
-// Parse watch party teams back to team objects
+// Get teams from watch party (handles both old string format and new object format)
+function getWatchPartyTeams(watchParty) {
+    if (!watchParty || !watchParty.teams) return [];
+
+    // Check if teams are already full objects (new format)
+    if (watchParty.teams.length > 0 && typeof watchParty.teams[0] === 'object') {
+        return watchParty.teams;
+    }
+
+    // Old format: ["soccer-368", "nhl-20"] - can't resolve without lookup
+    // Return empty array (old links won't work fully)
+    return [];
+}
+
+// Parse watch party teams back to team objects (DEPRECATED - kept for backwards compatibility)
 function parseWatchPartyTeams(encodedTeams, allKnownTeams) {
-    // encodedTeams: ["soccer-368", "nhl-20"]
-    // Need to match against known team data to get full team objects
+    // encodedTeams: ["soccer-368", "nhl-20"] OR full team objects
+    // If already objects, return as-is
+    if (encodedTeams.length > 0 && typeof encodedTeams[0] === 'object') {
+        return encodedTeams;
+    }
+
+    // Old format - try to match against known team data
     const result = [];
     for (const encoded of encodedTeams) {
         const [sport, id] = encoded.split('-');
@@ -435,4 +480,54 @@ function parseWatchPartyTeams(encodedTeams, allKnownTeams) {
         }
     }
     return result;
+}
+
+// ============================================
+// Watch Party Session Persistence
+// ============================================
+
+const WATCH_PARTY_SESSION_KEY = 'sports-tracker-watch-party';
+
+// Store watch party in sessionStorage (persists across page navigation)
+function setWatchPartySession(settings) {
+    try {
+        sessionStorage.setItem(WATCH_PARTY_SESSION_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.error('Error saving watch party session:', e);
+    }
+}
+
+// Get watch party from sessionStorage
+function getWatchPartySession() {
+    try {
+        const saved = sessionStorage.getItem(WATCH_PARTY_SESSION_KEY);
+        return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+        console.error('Error loading watch party session:', e);
+        return null;
+    }
+}
+
+// Clear watch party session (return to own view)
+function clearWatchPartySession() {
+    sessionStorage.removeItem(WATCH_PARTY_SESSION_KEY);
+}
+
+// Get active watch party (checks session first, then URL, stores URL params in session)
+function getActiveWatchParty() {
+    // First check sessionStorage
+    const sessionWp = getWatchPartySession();
+    if (sessionWp) {
+        return sessionWp;
+    }
+
+    // Then check URL params
+    const urlWp = getWatchPartyFromURL();
+    if (urlWp) {
+        // Store in session for cross-page persistence
+        setWatchPartySession(urlWp);
+        return urlWp;
+    }
+
+    return null;
 }

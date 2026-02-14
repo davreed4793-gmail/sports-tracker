@@ -566,8 +566,172 @@ function initDisplayOptions() {
     });
 }
 
+// Render watch party view-only settings
+function renderWatchPartySettings(watchParty) {
+    const bannerContainer = document.getElementById('watch-party-banner-container');
+    if (bannerContainer) {
+        bannerContainer.innerHTML = `<div class="watch-party-banner">Viewing Watch Party Settings<a href="settings.html" onclick="clearWatchPartySession(); window.location.href='settings.html'; return false;">View your own settings</a></div>`;
+    }
+
+    // Add watch-party-mode class to body for CSS styling
+    document.body.classList.add('watch-party-mode');
+
+    // Hide the "Add Teams" section entirely
+    const leaguePicker = document.querySelector('.league-picker');
+    const searchBox = document.querySelector('.search-box');
+    if (leaguePicker) leaguePicker.style.display = 'none';
+    if (searchBox) searchBox.style.display = 'none';
+
+    // Hide the "Add Teams" section header
+    const addTeamsSection = document.querySelector('.settings-section:has(.league-picker)');
+    if (addTeamsSection) addTeamsSection.style.display = 'none';
+
+    // Render partner's teams (view-only, no buttons)
+    renderWatchPartyTeams(watchParty.teams || []);
+
+    // Render big game settings (disabled)
+    renderWatchPartyBigGames(watchParty.bigGames || {});
+
+    // Render preseason toggle (disabled)
+    renderWatchPartyPreseason(watchParty.showPreseason);
+
+    // Update section descriptions
+    const favTeamsDesc = document.querySelector('.settings-section:first-child .settings-description');
+    if (favTeamsDesc) {
+        favTeamsDesc.textContent = "These are the Watch Party host's favorite teams.";
+    }
+    const bigGamesDesc = document.querySelector('.settings-section:has(#big-game-categories) .settings-description');
+    if (bigGamesDesc) {
+        bigGamesDesc.textContent = "These are the Watch Party host's Big Game settings.";
+    }
+}
+
+// Render watch party teams (view-only)
+function renderWatchPartyTeams(teams) {
+    const container = document.getElementById('selected-teams');
+    if (!container) return;
+
+    if (!teams || teams.length === 0) {
+        container.innerHTML = '<p class="no-teams">No teams in this Watch Party.</p>';
+        return;
+    }
+
+    // Teams can be full objects (new format) or strings (old format)
+    const teamsHtml = teams.map(team => {
+        let name, logo, league;
+
+        if (typeof team === 'object') {
+            // New format: full team object
+            name = team.name;
+            logo = team.logo;
+            league = team.league;
+        } else {
+            // Old format: "sport-id" string - try to look up
+            const [sport, id] = team.split('-');
+            const found = DEFAULT_TEAMS.find(t => t.sport === sport && t.id === id);
+            name = found ? found.name : `${sport} team ${id}`;
+            logo = found ? found.logo : '';
+            league = found ? found.league : sport;
+        }
+
+        return `
+        <div class="selected-team watch-party-team">
+            ${logo ? `<img src="${logo}" alt="" class="team-logo-small">` : ''}
+            <span class="team-name">${name}</span>
+            <span class="team-league-badge ${league}">${LEAGUES[league]?.name || league}</span>
+        </div>
+        `;
+    }).join('');
+
+    container.innerHTML = teamsHtml;
+}
+
+// Render watch party big game settings (disabled checkboxes)
+function renderWatchPartyBigGames(bigGames) {
+    const container = document.getElementById('big-game-categories');
+    if (!container) return;
+
+    let sectionsHtml = '';
+    for (const [competitionKey, competitionName] of Object.entries(COMPETITIONS)) {
+        const enabledCategories = bigGames[competitionKey] || [];
+        const enabledCount = enabledCategories.length;
+
+        let categoriesHtml = '';
+        for (const category of ALL_CATEGORIES) {
+            const isChecked = enabledCategories.includes(category);
+            const displayName = GAME_CATEGORY_DISPLAY_NAMES[category] || category;
+            const description = GAME_CATEGORY_DESCRIPTIONS[category] || '';
+
+            categoriesHtml += `
+                <label class="category-toggle">
+                    <input type="checkbox"
+                           ${isChecked ? 'checked' : ''}
+                           disabled>
+                    <div class="category-text">
+                        <span class="category-name">${displayName}</span>
+                        <span class="category-desc">${description}</span>
+                    </div>
+                </label>
+            `;
+        }
+
+        sectionsHtml += `
+            <div class="competition-section" data-competition="${competitionKey}">
+                <div class="competition-header">
+                    <span class="collapse-indicator">&#9654;</span>
+                    <span class="competition-name">${competitionName}</span>
+                    <span class="enabled-count">${enabledCount}/${ALL_CATEGORIES.length}</span>
+                </div>
+                <div class="category-toggles collapsed">
+                    ${categoriesHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = sectionsHtml;
+
+    // Add click handlers for expand/collapse (still works in view-only mode)
+    container.querySelectorAll('.competition-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const section = header.closest('.competition-section');
+            const togglesContainer = section.querySelector('.category-toggles');
+            const indicator = header.querySelector('.collapse-indicator');
+            const isCollapsed = togglesContainer.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                togglesContainer.classList.remove('collapsed');
+                indicator.innerHTML = '&#9660;';
+            } else {
+                togglesContainer.classList.add('collapsed');
+                indicator.innerHTML = '&#9654;';
+            }
+        });
+    });
+
+    // Setup expand/collapse all buttons (still work in view-only mode)
+    setupExpandCollapseButtons();
+}
+
+// Render watch party preseason toggle (disabled)
+function renderWatchPartyPreseason(showPreseason) {
+    const preseasonCheckbox = document.getElementById('show-preseason');
+    if (preseasonCheckbox) {
+        preseasonCheckbox.checked = showPreseason !== false;
+        preseasonCheckbox.disabled = true;
+    }
+}
+
 // Initialize the settings page
 async function init() {
+    // Check for watch party mode first
+    const watchParty = getActiveWatchParty();
+    if (watchParty) {
+        renderWatchPartySettings(watchParty);
+        return; // Skip normal init - we're in view-only mode
+    }
+
+    // Normal mode: render editable settings
     // Render currently selected teams
     renderSelectedTeams();
 
