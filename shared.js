@@ -16,10 +16,11 @@ const TEAM_LEVELS = {
 // ============================================
 
 const GAME_CATEGORIES = {
-    ROB_LOWE: 'rob-lowe',              // two top tier teams (Thinkin Supey counts as top tier)
-    MEASURING_STICK: 'measuring-stick', // Ya Never Know vs top tier
-    BEAT_EM_OFF: 'beat-em-off',        // favorite (Thinkin Supey or Ya Never Know) vs regular team
-    HOUSE_DIVIDED: 'house-divided'     // any two favorites playing each other
+    ROB_LOWE: 'rob-lowe',              // TT vs TT (neither is favorite)
+    PLAYOFF_PREVIEW: 'playoff-preview', // TT vs TS (top tier vs your top-tier favorite)
+    MEASURING_STICK: 'measuring-stick', // TT vs YNK
+    BEAT_EM_OFF: 'beat-em-off',        // TS/YNK vs R
+    HOUSE_DIVIDED: 'house-divided'     // two favorites
 };
 
 // ============================================
@@ -74,17 +75,17 @@ const COMPETITIONS = {
 };
 
 // All game categories
-const ALL_CATEGORIES = ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'];
+const ALL_CATEGORIES = ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'];
 
 // Default: all categories enabled for all competitions
 const DEFAULT_BIG_GAME_SETTINGS = {
     perCompetition: {
-        'premier-league': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'champions-league': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'fa-cup': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'league-cup': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'nba': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'nhl': ['rob-lowe', 'measuring-stick', 'beat-em-off', 'house-divided']
+        'premier-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'champions-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'fa-cup': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'league-cup': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'nba': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'nhl': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided']
     }
 };
 
@@ -109,11 +110,19 @@ function getBigGameSettings() {
                 return migratedSettings;
             }
 
-            // Ensure all competitions exist (in case new ones were added)
+            // Ensure all competitions exist AND have all categories
             if (parsed.perCompetition) {
                 for (const competition of Object.keys(COMPETITIONS)) {
                     if (!parsed.perCompetition[competition]) {
+                        // New competition - add all categories
                         parsed.perCompetition[competition] = [...ALL_CATEGORIES];
+                    } else {
+                        // Existing competition - add any missing categories
+                        for (const category of ALL_CATEGORIES) {
+                            if (!parsed.perCompetition[competition].includes(category)) {
+                                parsed.perCompetition[competition].push(category);
+                            }
+                        }
                     }
                 }
                 return parsed;
@@ -194,29 +203,37 @@ function categorizeGame(homeTeamCategory, awayTeamCategory) {
     const isAwayYaNeverKnow = awayTeamCategory === TEAM_LEVELS.YA_NEVER_KNOW;
     const isHomeFavorite = isHomeThinkinSupey || isHomeYaNeverKnow;
     const isAwayFavorite = isAwayThinkinSupey || isAwayYaNeverKnow;
-    const isHomeTopTier = homeTeamCategory === TEAM_LEVELS.TOP_TIER || isHomeThinkinSupey;
-    const isAwayTopTier = awayTeamCategory === TEAM_LEVELS.TOP_TIER || isAwayThinkinSupey;
+    // Note: TOP_TIER here means non-favorite top tier only
+    const isHomeTopTierOnly = homeTeamCategory === TEAM_LEVELS.TOP_TIER;
+    const isAwayTopTierOnly = awayTeamCategory === TEAM_LEVELS.TOP_TIER;
 
-    // House Divided: any two favorites playing each other (highest priority for favorites)
+    // House Divided: any two favorites playing each other (highest priority)
     if (isHomeFavorite && isAwayFavorite) {
         return GAME_CATEGORIES.HOUSE_DIVIDED;
     }
 
-    // Rob Lowe: two top tier teams (Thinkin Supey counts as top tier)
-    if (isHomeTopTier && isAwayTopTier) {
+    // Playoff Preview: Top Tier (non-favorite) vs Thinkin Supey
+    if ((isHomeTopTierOnly && isAwayThinkinSupey) || (isAwayTopTierOnly && isHomeThinkinSupey)) {
+        return GAME_CATEGORIES.PLAYOFF_PREVIEW;
+    }
+
+    // Rob Lowe: Two top tiers (neither is a favorite)
+    if (isHomeTopTierOnly && isAwayTopTierOnly) {
         return GAME_CATEGORIES.ROB_LOWE;
     }
 
-    // Measuring Stick: Ya Never Know vs top tier (non-favorite)
-    if ((isHomeYaNeverKnow && isAwayTopTier) || (isAwayYaNeverKnow && isHomeTopTier)) {
+    // Measuring Stick: Ya Never Know vs Top Tier (non-favorite)
+    if ((isHomeYaNeverKnow && isAwayTopTierOnly) || (isAwayYaNeverKnow && isHomeTopTierOnly)) {
         return GAME_CATEGORIES.MEASURING_STICK;
     }
 
-    // Beat Em Off: favorite (Thinkin Supey OR Ya Never Know) vs regular team
-    if (isHomeFavorite && !isAwayTopTier && !isAwayFavorite) {
+    // Beat Em Off: favorite vs regular team
+    const isHomeRegular = !homeTeamCategory;
+    const isAwayRegular = !awayTeamCategory;
+    if (isHomeFavorite && isAwayRegular) {
         return GAME_CATEGORIES.BEAT_EM_OFF;
     }
-    if (isAwayFavorite && !isHomeTopTier && !isHomeFavorite) {
+    if (isAwayFavorite && isHomeRegular) {
         return GAME_CATEGORIES.BEAT_EM_OFF;
     }
 
@@ -242,13 +259,15 @@ function buildTeamCategoryMap(allTeamIds, topTierTeamIds, favoriteTeamIds) {
 
 const GAME_CATEGORY_DISPLAY_NAMES = {
     [GAME_CATEGORIES.ROB_LOWE]: 'Rob Lowe Games',
+    [GAME_CATEGORIES.PLAYOFF_PREVIEW]: 'Playoff Preview',
     [GAME_CATEGORIES.MEASURING_STICK]: 'Measuring Stick Games',
     [GAME_CATEGORIES.BEAT_EM_OFF]: 'Beat Em Off Games',
     [GAME_CATEGORIES.HOUSE_DIVIDED]: 'House Divided Games'
 };
 
 const GAME_CATEGORY_DESCRIPTIONS = {
-    [GAME_CATEGORIES.ROB_LOWE]: 'Two top tier teams facing off',
+    [GAME_CATEGORIES.ROB_LOWE]: 'Two top tier teams (not your favorites)',
+    [GAME_CATEGORIES.PLAYOFF_PREVIEW]: 'Top tier vs your top-tier favorite',
     [GAME_CATEGORIES.MEASURING_STICK]: 'Your underdog favorites vs top tier opponents',
     [GAME_CATEGORIES.BEAT_EM_OFF]: 'Your favorites vs regular teams',
     [GAME_CATEGORIES.HOUSE_DIVIDED]: 'Two of your favorites playing each other'
