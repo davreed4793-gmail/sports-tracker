@@ -549,8 +549,25 @@ footer {
 
 /* Settings page */
 #settings {
-    max-width: 900px;
+    max-width: 1400px;
     margin: 0 auto;
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+.settings-row .settings-section {
+    margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .settings-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .settings-section {

@@ -17,14 +17,63 @@
     </header>
 
     <main id="settings">
-        <section class="settings-section">
-            <h2>My Favorite Teams</h2>
-            <p class="settings-description">Select up to 10 teams to track. Changes are saved automatically.</p>
+        <div class="settings-row">
+            <section class="settings-section">
+                <h2>My Favorite Teams</h2>
+                <p class="settings-description">Select up to 10 teams to track. Changes are saved automatically.</p>
 
-            <div id="selected-teams" class="selected-teams">
-                <p class="loading">Loading your teams...</p>
-            </div>
-        </section>
+                <div id="selected-teams" class="selected-teams">
+                    <p class="loading">Loading your teams...</p>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h2>Add Teams</h2>
+
+                <div class="search-box">
+                    <input type="text" id="team-search" placeholder="Search teams..." autocomplete="off">
+                </div>
+
+                <div id="search-results" class="search-results" style="display: none;"></div>
+
+                <div class="league-picker">
+                    <div class="league-section">
+                        <h3>Premier League</h3>
+                        <div id="teams-premier-league" class="team-grid">
+                            <p class="loading">Loading teams...</p>
+                        </div>
+                    </div>
+
+                    <div class="league-section">
+                        <h3>NFL</h3>
+                        <div id="teams-nfl" class="team-grid">
+                            <p class="loading">Loading teams...</p>
+                        </div>
+                    </div>
+
+                    <div class="league-section">
+                        <h3>NHL</h3>
+                        <div id="teams-nhl" class="team-grid">
+                            <p class="loading">Loading teams...</p>
+                        </div>
+                    </div>
+
+                    <div class="league-section">
+                        <h3>NBA</h3>
+                        <div id="teams-nba" class="team-grid">
+                            <p class="loading">Loading teams...</p>
+                        </div>
+                    </div>
+
+                    <div class="league-section">
+                        <h3>MLB</h3>
+                        <div id="teams-mlb" class="team-grid">
+                            <p class="loading">Loading teams...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
 
         <section class="settings-section">
             <h2>Big Game Settings</h2>
@@ -37,53 +86,6 @@
 
             <div id="big-game-categories" class="competition-sections">
                 <!-- Per-competition sections generated dynamically by settings.js -->
-            </div>
-        </section>
-
-        <section class="settings-section">
-            <h2>Add Teams</h2>
-
-            <div class="search-box">
-                <input type="text" id="team-search" placeholder="Search teams..." autocomplete="off">
-            </div>
-
-            <div id="search-results" class="search-results" style="display: none;"></div>
-
-            <div class="league-picker">
-                <div class="league-section">
-                    <h3>Premier League</h3>
-                    <div id="teams-premier-league" class="team-grid">
-                        <p class="loading">Loading teams...</p>
-                    </div>
-                </div>
-
-                <div class="league-section">
-                    <h3>NFL</h3>
-                    <div id="teams-nfl" class="team-grid">
-                        <p class="loading">Loading teams...</p>
-                    </div>
-                </div>
-
-                <div class="league-section">
-                    <h3>NHL</h3>
-                    <div id="teams-nhl" class="team-grid">
-                        <p class="loading">Loading teams...</p>
-                    </div>
-                </div>
-
-                <div class="league-section">
-                    <h3>NBA</h3>
-                    <div id="teams-nba" class="team-grid">
-                        <p class="loading">Loading teams...</p>
-                    </div>
-                </div>
-
-                <div class="league-section">
-                    <h3>MLB</h3>
-                    <div id="teams-mlb" class="team-grid">
-                        <p class="loading">Loading teams...</p>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
