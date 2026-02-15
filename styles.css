@@ -149,6 +149,7 @@ main {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 20px;
+    align-items: start;
 }
 
 .teams-column {
@@ -166,11 +167,14 @@ main {
     font-size: 1.1rem;
     color: #666;
     text-align: center;
-    margin: 0 0 15px 0;
-    grid-column: 1 / -1;  /* Span all columns in teams grid */
+    margin: 0;
+    grid-column: 1 / -1;  /* Span all columns in grid */
 }
 
 .big-games-column {
+    display: grid;
+    gap: 20px;
+    align-content: start;
     position: sticky;
     top: 20px;
     align-self: start;

@@ -876,6 +876,14 @@ function renderBigGamesCard(games) {
         ) : '';
 
         const sportLabel = game.sport.charAt(0).toUpperCase() + game.sport.slice(1);
+        const isSoccer = isSoccerLeague(game.league);
+
+        // Sport-specific matchup: soccer "Home v. Away", others "Away @ Home"
+        const leftTeam = isSoccer ? game.homeTeam : game.awayTeam;
+        const rightTeam = isSoccer ? game.awayTeam : game.homeTeam;
+        const leftCategory = isSoccer ? game.homeTeamCategory : game.awayTeamCategory;
+        const rightCategory = isSoccer ? game.awayTeamCategory : game.homeTeamCategory;
+        const separator = isSoccer ? 'v.' : '@';
 
         return `
             <div class="game big-game ${game.isCompleted ? 'completed' : ''} ${mustWatch ? 'must-watch' : ''} ${game.involvesFavorite ? 'favorite-big-game' : ''}">
@@ -886,13 +894,13 @@ function renderBigGamesCard(games) {
                 <div class="big-game-sport">${sportLabel}</div>
                 <div class="big-game-matchup">
                     <div class="big-game-team">
-                        ${game.homeTeam.logo ? `<img src="${game.homeTeam.logo}" alt="" class="big-game-logo">` : ''}
-                        <span class="team-name-hover" data-category="${getCategoryLabel(game.homeTeamCategory)}">${game.homeTeam.name}</span>
+                        ${leftTeam.logo ? `<img src="${leftTeam.logo}" alt="" class="big-game-logo">` : ''}
+                        <span class="team-name-hover" data-category="${getCategoryLabel(leftCategory)}">${leftTeam.name}</span>
                     </div>
-                    <span class="big-game-at">v.</span>
+                    <span class="big-game-at">${separator}</span>
                     <div class="big-game-team">
-                        ${game.awayTeam.logo ? `<img src="${game.awayTeam.logo}" alt="" class="big-game-logo">` : ''}
-                        <span class="team-name-hover" data-category="${getCategoryLabel(game.awayTeamCategory)}">${game.awayTeam.name}</span>
+                        ${rightTeam.logo ? `<img src="${rightTeam.logo}" alt="" class="big-game-logo">` : ''}
+                        <span class="team-name-hover" data-category="${getCategoryLabel(rightCategory)}">${rightTeam.name}</span>
                     </div>
                 </div>
                 ${resultHtml}
