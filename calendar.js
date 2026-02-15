@@ -1,8 +1,14 @@
 // localStorage key for favorite teams (shared with settings.js)
 const FAVORITE_TEAMS_KEY = 'sports-tracker-favorite-teams';
 
+// localStorage key for calendar filters
+const CALENDAR_FILTERS_KEY = 'sports-tracker-calendar-filters';
+
 // Watch Party mode - when viewing a shared URL
 let watchPartyMode = null;
+
+// Calendar filter state
+let currentFilters = null;
 
 // Teams with light primary colors that need to use their alternate color instead
 // Format: { teamId: true } - these teams will use alternateColor for readability with white text
@@ -67,6 +73,103 @@ function getFavoriteTeams() {
         console.error('Error loading favorite teams:', e);
     }
     return DEFAULT_TEAMS;
+}
+
+// ============================================
+// Calendar Filters
+// ============================================
+
+function getCalendarFilters() {
+    const defaults = { favoritesOnly: false, leagues: [] };
+    try {
+        const saved = localStorage.getItem(CALENDAR_FILTERS_KEY);
+        if (saved) {
+            return { ...defaults, ...JSON.parse(saved) };
+        }
+    } catch (e) {
+        console.error('Error loading calendar filters:', e);
+    }
+    return defaults;
+}
+
+function saveCalendarFilters(filters) {
+    try {
+        localStorage.setItem(CALENDAR_FILTERS_KEY, JSON.stringify(filters));
+    } catch (e) {
+        console.error('Error saving calendar filters:', e);
+    }
+}
+
+function applyFilters(games, filters) {
+    return games.filter(game => {
+        // League filter (empty array = show all)
+        if (filters.leagues.length > 0 && !filters.leagues.includes(game.league)) {
+            return false;
+        }
+
+        // Favorites Only filter: if enabled, only show games involving favorites
+        if (filters.favoritesOnly && !game.involvesFavorite) {
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function renderFilters(allLeagues) {
+    const container = document.getElementById('calendar-filters');
+    if (!container) return;
+
+    // Hide filters in watch party mode
+    if (watchPartyMode) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = '';
+
+    const filters = getCalendarFilters();
+    currentFilters = filters;
+
+    const leagueOptions = allLeagues.map(league => {
+        const isSelected = filters.leagues.length === 0 || filters.leagues.includes(league);
+        return `<label class="filter-league-option">
+            <input type="checkbox" value="${league}" ${isSelected ? 'checked' : ''} class="league-filter-checkbox">
+            ${formatLeagueName(league)}
+        </label>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="filter-group">
+            <span class="filter-label">Favorites Only:</span>
+            <button type="button" id="filter-favorites-only" class="filter-toggle ${filters.favoritesOnly ? 'active' : ''}">
+                ${filters.favoritesOnly ? 'On' : 'Off'}
+            </button>
+        </div>
+        <div class="filter-group filter-leagues">
+            <span class="filter-label">Leagues:</span>
+            ${leagueOptions}
+        </div>
+    `;
+
+    // Add event listeners
+    document.getElementById('filter-favorites-only').addEventListener('click', (e) => {
+        currentFilters.favoritesOnly = !currentFilters.favoritesOnly;
+        e.target.classList.toggle('active', currentFilters.favoritesOnly);
+        e.target.textContent = currentFilters.favoritesOnly ? 'On' : 'Off';
+        saveCalendarFilters(currentFilters);
+        loadSchedules();
+    });
+
+    container.querySelectorAll('.league-filter-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const checkedLeagues = Array.from(container.querySelectorAll('.league-filter-checkbox:checked'))
+                .map(cb => cb.value);
+            // If all leagues checked, store empty array (= show all)
+            currentFilters.leagues = checkedLeagues.length === allLeagues.length ? [] : checkedLeagues;
+            saveCalendarFilters(currentFilters);
+            loadSchedules();
+        });
+    });
 }
 
 // How many days ahead to look for games
@@ -531,21 +634,53 @@ function renderGamesTable(games, tableId) {
         ` : '';
 
         // Format matchup: show both teams, bold the favorite team
-        // For big games, add hover tooltips showing team categories
+        // Soccer: "Home v. Away", Other sports: "Away @ Home"
+        const isSoccer = isSoccerLeague(game.league);
+
         let matchupText;
+        let reasonBadge;
+
         if (game.isBigGame) {
             // Big games: wrap team names with category tooltips
             const homeLabel = getCategoryLabel(game.homeTeamCategory);
             const awayLabel = getCategoryLabel(game.awayTeamCategory);
-            matchupText = `<span class="team-name-hover" data-category="${homeLabel}">${game.homeTeamName}</span> v. <span class="team-name-hover" data-category="${awayLabel}">${game.awayTeamName}</span>`;
-        } else {
-            // Regular games: show "Home vs Away" with favorite (teamName) bolded
-            if (game.isHome) {
-                matchupText = `<strong>${game.teamName}</strong> vs ${game.opponent}`;
+            const homeSpan = `<span class="team-name-hover" data-category="${homeLabel}">${game.homeTeamName}</span>`;
+            const awaySpan = `<span class="team-name-hover" data-category="${awayLabel}">${game.awayTeamName}</span>`;
+
+            if (isSoccer) {
+                matchupText = `${homeSpan} v. ${awaySpan}`;
             } else {
-                matchupText = `${game.opponent} vs <strong>${game.teamName}</strong>`;
+                matchupText = `${awaySpan} @ ${homeSpan}`;
             }
+
+            // Badge: show the game category type with hover description
+            const categoryName = GAME_CATEGORY_DISPLAY_NAMES[game.gameCategory] || 'Big Game';
+            const categoryDesc = GAME_CATEGORY_DESCRIPTIONS[game.gameCategory] || '';
+            reasonBadge = `<span class="game-reason-badge big-game" data-tooltip="${categoryDesc}">${categoryName}</span>`;
+        } else {
+            // Regular games: favorite team bolded
+            if (isSoccer) {
+                // Soccer: Home vs Away
+                if (game.isHome) {
+                    matchupText = `<strong>${game.teamName}</strong> vs ${game.opponent}`;
+                } else {
+                    matchupText = `${game.opponent} vs <strong>${game.teamName}</strong>`;
+                }
+            } else {
+                // Other sports: Away @ Home
+                if (game.isHome) {
+                    matchupText = `${game.opponent} @ <strong>${game.teamName}</strong>`;
+                } else {
+                    matchupText = `<strong>${game.teamName}</strong> @ ${game.opponent}`;
+                }
+            }
+
+            // Badge: favorite team
+            reasonBadge = `<span class="game-reason-badge favorite">Favorite</span>`;
         }
+
+        // Append badge to matchup
+        matchupText = `${matchupText} ${reasonBadge}`;
 
         // Use team's dynamic color if available, fall back to league class
         const badgeStyle = game.teamColor ? `style="background-color: ${game.teamColor}"` : '';
@@ -571,7 +706,7 @@ function renderGamesTable(games, tableId) {
                 <tr>
                     <th>Date</th>
                     <th>Time</th>
-                    <th>Competition</th>
+                    <th>League</th>
                     <th>Matchup</th>
                     <th>Channel</th>
                     <th>Must Watch</th>
@@ -894,7 +1029,8 @@ async function fetchBigGamesForCalendar() {
                     homeTeamId: homeTeamId,
                     awayTeamId: awayTeamId,
                     homeTeamCategory: homeTeamCategory,
-                    awayTeamCategory: awayTeamCategory
+                    awayTeamCategory: awayTeamCategory,
+                    involvesFavorite: involvesFavorite
                 });
             }
         }
@@ -1010,12 +1146,22 @@ async function loadSchedules() {
             return isWithinWindow && passesPreseasonFilter;
         });
 
+        // Get all unique leagues for filter UI (before applying filters)
+        const allLeagues = [...new Set(futureGames.map(g => g.league))].sort();
+
+        // Render filter UI (hidden in watch party mode)
+        renderFilters(allLeagues);
+
+        // Apply user filters
+        const filters = getCalendarFilters();
+        const filteredGames = applyFilters(futureGames, filters);
+
         // Split into next 7 days and later
         const sevenDaysFromNow = new Date(now);
         sevenDaysFromNow.setDate(now.getDate() + 7);
 
-        const next7Days = futureGames.filter(g => g.date <= sevenDaysFromNow);
-        const laterThisMonth = futureGames.filter(g => g.date > sevenDaysFromNow);
+        const next7Days = filteredGames.filter(g => g.date <= sevenDaysFromNow);
+        const laterThisMonth = filteredGames.filter(g => g.date > sevenDaysFromNow);
 
         // Render both sections plus error footer if needed
         const errorHtml = renderErrorFooter(errors);
@@ -1028,7 +1174,13 @@ async function loadSchedules() {
                 : '';
         }
 
+        // Handle empty state when no games match filters
+        const noGamesMessage = filteredGames.length === 0
+            ? '<p class="no-games-message">No games match your current filters. Try adjusting the filters above.</p>'
+            : '';
+
         container.innerHTML = `
+            ${noGamesMessage}
             <section class="calendar-section">
                 <h2>Next 7 Days</h2>
                 ${renderGamesTable(next7Days, 'next-7-days')}

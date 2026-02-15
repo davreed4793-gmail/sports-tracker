@@ -79,6 +79,13 @@ const COMPETITIONS = {
     'nhl': 'NHL'
 };
 
+// Soccer leagues use "Home v. Away" format; others use "Away @ Home"
+const SOCCER_LEAGUES = ['premier-league', 'champions-league', 'fa-cup', 'league-cup'];
+
+function isSoccerLeague(league) {
+    return SOCCER_LEAGUES.includes(league);
+}
+
 // All game categories
 const ALL_CATEGORIES = ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'];
 
@@ -293,11 +300,11 @@ function buildTeamCategoryMap(allTeamIds, topTierTeamIds, favoriteTeamIds) {
 // ============================================
 
 const GAME_CATEGORY_DISPLAY_NAMES = {
-    [GAME_CATEGORIES.ROB_LOWE]: 'Rob Lowe Games',
+    [GAME_CATEGORIES.ROB_LOWE]: 'Rob Lowe',
     [GAME_CATEGORIES.PLAYOFF_PREVIEW]: 'Playoff Preview',
-    [GAME_CATEGORIES.MEASURING_STICK]: 'Measuring Stick Games',
-    [GAME_CATEGORIES.BEAT_EM_OFF]: 'Beat Em Off Games',
-    [GAME_CATEGORIES.HOUSE_DIVIDED]: 'House Divided Games'
+    [GAME_CATEGORIES.MEASURING_STICK]: 'Measuring Stick',
+    [GAME_CATEGORIES.BEAT_EM_OFF]: 'Beat Em Off',
+    [GAME_CATEGORIES.HOUSE_DIVIDED]: 'House Divided'
 };
 
 const GAME_CATEGORY_DESCRIPTIONS = {
