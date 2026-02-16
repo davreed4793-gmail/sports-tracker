@@ -123,3 +123,11 @@ For each feature (user-provided or suggested), report:
 Identify ways to make the app faster without breaking anything. For each suggestion, report:
 - **Impact** (1-10): How much will this improve performance?
 - **Risk** (1-10): How likely is this to break existing functionality?
+
+---
+
+## Known Technical Debt
+
+Items to discuss in future sessions:
+
+- **Duplicate code across app.js and calendar.js**: Many functions are duplicated (fetchTeamGames, fetchScoreboardForDate, fetchPremierLeagueData, etc.). Bug fixes in one file might not be applied to the other. Risk 5/10, Complexity 5/10. Needs broader refactoring plan.
