@@ -1043,6 +1043,34 @@ footer {
     border-radius: 10px;
 }
 
+/* Bulk select buttons */
+.bulk-select-buttons {
+    display: flex;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.bulk-select-btn {
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bulk-select-btn:hover {
+    background: #e8f4ff;
+    border-color: #4a90d9;
+    color: #4a90d9;
+}
+
+.bulk-select-btn:active {
+    background: #d0e8ff;
+}
+
 /* Big Game Settings - Category toggles */
 .category-toggles {
     display: flex;

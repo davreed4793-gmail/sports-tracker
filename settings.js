@@ -453,6 +453,10 @@ function initBigGameSettings() {
                     <span class="collapse-indicator">&#9654;</span>
                     <span class="competition-name">${competitionName}</span>
                     <span class="enabled-count">${enabledCount}/${ALL_CATEGORIES.length}</span>
+                    <span class="bulk-select-buttons">
+                        <button type="button" class="bulk-select-btn select-all-btn" data-competition="${competitionKey}">All</button>
+                        <button type="button" class="bulk-select-btn select-none-btn" data-competition="${competitionKey}">None</button>
+                    </span>
                 </div>
                 <div class="category-toggles collapsed">
                     ${categoriesHtml}
@@ -462,6 +466,9 @@ function initBigGameSettings() {
     }
 
     container.innerHTML = sectionsHtml;
+
+    // Add click handlers for bulk select buttons
+    setupBulkSelectButtons();
 
     // Add click handlers for competition headers (expand/collapse)
     container.querySelectorAll('.competition-header').forEach(header => {
@@ -522,6 +529,51 @@ function updateEnabledCount(competitionKey) {
     if (countEl) {
         countEl.textContent = `${checkedCount}/${ALL_CATEGORIES.length}`;
     }
+}
+
+// Setup bulk select/deselect buttons for each competition
+function setupBulkSelectButtons() {
+    // Select All buttons
+    document.querySelectorAll('.select-all-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent header click from toggling collapse
+            const competition = btn.dataset.competition;
+            const section = document.querySelector(`.competition-section[data-competition="${competition}"]`);
+            const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+
+            // Check all checkboxes
+            checkboxes.forEach(cb => cb.checked = true);
+
+            // Update settings
+            const currentSettings = getBigGameSettings();
+            currentSettings.perCompetition[competition] = [...ALL_CATEGORIES];
+            saveBigGameSettings(currentSettings);
+
+            // Update count display
+            updateEnabledCount(competition);
+        });
+    });
+
+    // Select None buttons
+    document.querySelectorAll('.select-none-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent header click from toggling collapse
+            const competition = btn.dataset.competition;
+            const section = document.querySelector(`.competition-section[data-competition="${competition}"]`);
+            const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+
+            // Uncheck all checkboxes
+            checkboxes.forEach(cb => cb.checked = false);
+
+            // Update settings
+            const currentSettings = getBigGameSettings();
+            currentSettings.perCompetition[competition] = [];
+            saveBigGameSettings(currentSettings);
+
+            // Update count display
+            updateEnabledCount(competition);
+        });
+    });
 }
 
 // Setup expand/collapse all buttons

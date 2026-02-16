@@ -1,6 +1,32 @@
 // Shared constants and functions for Sports Tracker
 
 // ============================================
+// Fetch with Timeout Helper
+// ============================================
+
+// Wraps fetch() with an AbortController timeout to prevent indefinite hangs
+// Default timeout: 10 seconds
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeout}ms: ${url}`);
+        }
+        throw error;
+    }
+}
+
+// ============================================
 // Team Level Constants
 // ============================================
 
@@ -64,6 +90,21 @@ const STANDINGS_URLS = {
 
 const BIG_GAME_SETTINGS_KEY = 'sports-tracker-big-game-settings';
 
+// ============================================
+// Module-level Cache for localStorage Reads
+// ============================================
+// These caches prevent repeated JSON.parse() calls during render cycles.
+// Invalidated when saving new values.
+
+let _bigGameSettingsCache = null;
+let _showPreseasonCache = null;
+
+// Clear all module-level caches (call at start of loadSchedules or when settings change)
+function invalidateSettingsCache() {
+    _bigGameSettingsCache = null;
+    _showPreseasonCache = null;
+}
+
 // Schema version - increment when adding new categories or competitions
 // Version 1: Initial per-competition settings
 // Version 2: Added 'playoff-preview' category
@@ -104,6 +145,7 @@ const DEFAULT_BIG_GAME_SETTINGS = {
 
 // Get big game settings from localStorage with migration support
 // In watch party mode, returns the shared big game settings
+// Uses module-level cache to avoid repeated JSON.parse() calls during render
 function getBigGameSettings() {
     // Check for active watch party first
     const watchParty = getWatchPartySession();
@@ -113,6 +155,11 @@ function getBigGameSettings() {
             schemaVersion: SETTINGS_SCHEMA_VERSION,
             perCompetition: watchParty.bigGames
         };
+    }
+
+    // Return cached value if available
+    if (_bigGameSettingsCache !== null) {
+        return _bigGameSettingsCache;
     }
 
     try {
@@ -130,8 +177,9 @@ function getBigGameSettings() {
                 for (const competition of Object.keys(COMPETITIONS)) {
                     migratedSettings.perCompetition[competition] = [...parsed.enabledCategories];
                 }
-                // Save migrated settings
+                // Save migrated settings (also updates cache via saveBigGameSettings)
                 saveBigGameSettings(migratedSettings);
+                _bigGameSettingsCache = migratedSettings;
                 return migratedSettings;
             }
 
@@ -165,17 +213,21 @@ function getBigGameSettings() {
                     saveBigGameSettings(parsed);
                 }
 
+                _bigGameSettingsCache = parsed;
                 return parsed;
             }
         }
     } catch (e) {
         console.error('Error loading big game settings:', e);
     }
-    return JSON.parse(JSON.stringify(DEFAULT_BIG_GAME_SETTINGS));
+    const defaultCopy = JSON.parse(JSON.stringify(DEFAULT_BIG_GAME_SETTINGS));
+    _bigGameSettingsCache = defaultCopy;
+    return defaultCopy;
 }
 
 // Save big game settings to localStorage
 function saveBigGameSettings(settings) {
+    _bigGameSettingsCache = settings;  // Update cache
     localStorage.setItem(BIG_GAME_SETTINGS_KEY, JSON.stringify(settings));
 }
 
@@ -335,6 +387,7 @@ function getCategoryLabel(category) {
 const PRESEASON_SETTINGS_KEY = 'sports-tracker-show-preseason';
 
 // Get preseason visibility setting (default: true - show preseason games)
+// Uses module-level cache to avoid repeated localStorage reads during render
 function getShowPreseason() {
     // Check for active watch party first
     const watchParty = getWatchPartySession();
@@ -342,12 +395,19 @@ function getShowPreseason() {
         return watchParty.showPreseason;
     }
 
+    // Return cached value if available
+    if (_showPreseasonCache !== null) {
+        return _showPreseasonCache;
+    }
+
     const saved = localStorage.getItem(PRESEASON_SETTINGS_KEY);
-    return saved === null ? true : saved === 'true';
+    _showPreseasonCache = saved === null ? true : saved === 'true';
+    return _showPreseasonCache;
 }
 
 // Set preseason visibility setting
 function setShowPreseason(value) {
+    _showPreseasonCache = value;  // Update cache
     localStorage.setItem(PRESEASON_SETTINGS_KEY, String(value));
 }
 
@@ -397,6 +457,114 @@ function clearAllCache() {
         if (key.startsWith(CACHE_KEY_PREFIX)) {
             localStorage.removeItem(key);
         }
+    }
+}
+
+// ============================================
+// Standings Fetch Functions (shared across pages)
+// ============================================
+// These functions are used by both app.js and calendar.js
+// Sharing them ensures consistent cache keys across pages
+
+// Fetch NBA top tier teams (top 6 by wins in each conference)
+async function fetchNBATopTierTeams() {
+    const cacheKey = 'standings-nba';
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const response = await fetchWithTimeout(STANDINGS_URLS['nba']);
+        if (!response.ok) {
+            return { topTierTeamIds: [], error: true };
+        }
+
+        const data = await response.json();
+        const children = data.children || [];
+        const topTierTeamIds = [];
+
+        // Each child is a conference (Eastern, Western)
+        for (const conference of children) {
+            const standings = conference.standings || {};
+            const entries = standings.entries || [];
+
+            // Extract team ID and wins
+            const teams = entries.map(entry => {
+                const teamId = entry.team?.id || '';
+                const stats = entry.stats || [];
+                let wins = 0;
+                for (const stat of stats) {
+                    if (stat.name === 'wins') {
+                        wins = parseInt(stat.value) || 0;
+                        break;
+                    }
+                }
+                return { id: teamId, wins };
+            });
+
+            // Sort by wins descending and take top 6
+            teams.sort((a, b) => b.wins - a.wins);
+            const topN = TOP_TIER_THRESHOLDS['nba'].topN;
+            const topTeams = teams.slice(0, topN);
+            topTierTeamIds.push(...topTeams.map(t => t.id));
+        }
+
+        const result = { topTierTeamIds, error: false };
+        setCache(cacheKey, result);
+        return result;
+    } catch (error) {
+        console.error('Error fetching NBA standings:', error);
+        return { topTierTeamIds: [], error: true };
+    }
+}
+
+// Fetch NHL top tier teams (top 8 by wins in each conference)
+async function fetchNHLTopTierTeams() {
+    const cacheKey = 'standings-nhl';
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const response = await fetchWithTimeout(STANDINGS_URLS['nhl']);
+        if (!response.ok) {
+            return { topTierTeamIds: [], error: true };
+        }
+
+        const data = await response.json();
+        const children = data.children || [];
+        const topTierTeamIds = [];
+
+        // Each child is a conference (Eastern, Western)
+        for (const conference of children) {
+            const standings = conference.standings || {};
+            const entries = standings.entries || [];
+
+            // Extract team ID and wins
+            const teams = entries.map(entry => {
+                const teamId = entry.team?.id || '';
+                const stats = entry.stats || [];
+                let wins = 0;
+                for (const stat of stats) {
+                    if (stat.name === 'wins') {
+                        wins = parseInt(stat.value) || 0;
+                        break;
+                    }
+                }
+                return { id: teamId, wins };
+            });
+
+            // Sort by wins descending and take top 8
+            teams.sort((a, b) => b.wins - a.wins);
+            const topN = TOP_TIER_THRESHOLDS['nhl'].topN;
+            const topTeams = teams.slice(0, topN);
+            topTierTeamIds.push(...topTeams.map(t => t.id));
+        }
+
+        const result = { topTierTeamIds, error: false };
+        setCache(cacheKey, result);
+        return result;
+    } catch (error) {
+        console.error('Error fetching NHL standings:', error);
+        return { topTierTeamIds: [], error: true };
     }
 }
 

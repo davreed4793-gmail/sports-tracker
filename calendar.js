@@ -10,6 +10,25 @@ let watchPartyMode = null;
 // Calendar filter state
 let currentFilters = null;
 
+// ============================================
+// Module-level Cache for localStorage Reads
+// ============================================
+// These caches prevent repeated JSON.parse() calls during render cycles.
+// Invalidated when saving new values or at start of loadSchedules().
+
+let _favoriteTeamsCache = null;
+let _mustWatchCache = null;
+
+// Invalidate calendar-specific caches (called at start of loadSchedules)
+function invalidateCalendarCache() {
+    _favoriteTeamsCache = null;
+    _mustWatchCache = null;
+    // Also invalidate shared.js caches
+    if (typeof invalidateSettingsCache === 'function') {
+        invalidateSettingsCache();
+    }
+}
+
 // Teams with light primary colors that need to use their alternate color instead
 // Format: { teamId: true } - these teams will use alternateColor for readability with white text
 const LIGHT_COLOR_TEAM_OVERRIDES = {
@@ -52,6 +71,7 @@ const DEFAULT_TEAMS = [
 
 // Get favorite teams from localStorage (or defaults)
 // In watch party mode, returns the shared teams
+// Uses module-level cache to avoid repeated JSON.parse() calls during render
 function getFavoriteTeams() {
     // Check for watch party mode first (global variable set in loadSchedules)
     if (watchPartyMode && watchPartyMode.teams) {
@@ -61,17 +81,24 @@ function getFavoriteTeams() {
         }
     }
 
+    // Return cached value if available
+    if (_favoriteTeamsCache !== null) {
+        return _favoriteTeamsCache;
+    }
+
     try {
         const saved = localStorage.getItem(FAVORITE_TEAMS_KEY);
         if (saved) {
             const teams = JSON.parse(saved);
             if (Array.isArray(teams) && teams.length > 0) {
+                _favoriteTeamsCache = teams;
                 return teams;
             }
         }
     } catch (e) {
         console.error('Error loading favorite teams:', e);
     }
+    _favoriteTeamsCache = DEFAULT_TEAMS;
     return DEFAULT_TEAMS;
 }
 
@@ -263,7 +290,7 @@ async function fetchTeamInfo(team) {
 
     const url = `https://site.api.espn.com/apis/site/v2/sports/${team.espnPath}/teams/${team.id}`;
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) return null;
         const data = await response.json();
         const teamInfo = data.team || null;
@@ -299,7 +326,7 @@ async function fetchScoreboardForDate(espnPath, dateStr) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/${espnPath}/scoreboard?dates=${dateStr}`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             return { events: [], error: true };
         }
@@ -326,7 +353,7 @@ async function fetchTeamGames(team) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/${team.espnPath}/teams/${team.id}/schedule`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             // Schedule endpoint failed, fall back to scoreboard
             return fetchTeamGamesFromScoreboard(team);
@@ -521,21 +548,32 @@ function parseEvent(event, team) {
 // Must Watch localStorage functions (same key as app.js for sync)
 const MUST_WATCH_KEY = 'sports-tracker-must-watch';
 
+// Get must watch games from localStorage
+// Uses module-level cache to avoid repeated JSON.parse() calls during render
 function getMustWatchGames() {
     // In watch party mode, use the shared mustWatch list
     if (watchPartyMode && watchPartyMode.mustWatch) {
         return watchPartyMode.mustWatch;
     }
+
+    // Return cached value if available
+    if (_mustWatchCache !== null) {
+        return _mustWatchCache;
+    }
+
     try {
         const saved = localStorage.getItem(MUST_WATCH_KEY);
-        return saved ? JSON.parse(saved) : [];
+        _mustWatchCache = saved ? JSON.parse(saved) : [];
+        return _mustWatchCache;
     } catch (e) {
         console.error('Error loading Must Watch games:', e);
+        _mustWatchCache = [];
         return [];
     }
 }
 
 function saveMustWatchGames(gameIds) {
+    _mustWatchCache = gameIds;  // Update cache
     localStorage.setItem(MUST_WATCH_KEY, JSON.stringify(gameIds));
 }
 
@@ -727,7 +765,7 @@ async function fetchPremierLeagueData() {
     if (cached) return cached;
 
     try {
-        const response = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings');
+        const response = await fetchWithTimeout('https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings');
         if (!response.ok) {
             return { qualifyingTeamIds: [], allEnglishTeamIds: [], error: true };
         }
@@ -781,107 +819,8 @@ async function fetchPremierLeagueData() {
     }
 }
 
-// Fetch NBA top tier teams (top 6 by wins in each conference)
-async function fetchNBATopTierTeams() {
-    const cacheKey = 'standings-nba';
-    const cached = getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-        const response = await fetch(STANDINGS_URLS['nba']);
-        if (!response.ok) {
-            return { topTierTeamIds: [], error: true };
-        }
-
-        const data = await response.json();
-        const children = data.children || [];
-        const topTierTeamIds = [];
-
-        // Each child is a conference (Eastern, Western)
-        for (const conference of children) {
-            const standings = conference.standings || {};
-            const entries = standings.entries || [];
-
-            // Extract team ID and wins
-            const teams = entries.map(entry => {
-                const teamId = entry.team?.id || '';
-                const stats = entry.stats || [];
-                let wins = 0;
-                for (const stat of stats) {
-                    if (stat.name === 'wins') {
-                        wins = parseInt(stat.value) || 0;
-                        break;
-                    }
-                }
-                return { id: teamId, wins };
-            });
-
-            // Sort by wins descending and take top 6
-            teams.sort((a, b) => b.wins - a.wins);
-            const topN = TOP_TIER_THRESHOLDS['nba'].topN;
-            const topTeams = teams.slice(0, topN);
-            topTierTeamIds.push(...topTeams.map(t => t.id));
-        }
-
-        const result = { topTierTeamIds, error: false };
-        setCache(cacheKey, result);
-        return result;
-    } catch (error) {
-        console.error('Error fetching NBA standings:', error);
-        return { topTierTeamIds: [], error: true };
-    }
-}
-
-// Fetch NHL top tier teams (top 8 by wins in each conference)
-async function fetchNHLTopTierTeams() {
-    const cacheKey = 'standings-nhl';
-    const cached = getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-        const response = await fetch(STANDINGS_URLS['nhl']);
-        if (!response.ok) {
-            return { topTierTeamIds: [], error: true };
-        }
-
-        const data = await response.json();
-        const children = data.children || [];
-        const topTierTeamIds = [];
-
-        // Each child is a conference (Eastern, Western)
-        for (const conference of children) {
-            const standings = conference.standings || {};
-            const entries = standings.entries || [];
-
-            // Extract team ID and wins
-            const teams = entries.map(entry => {
-                const teamId = entry.team?.id || '';
-                const stats = entry.stats || [];
-                let wins = 0;
-                for (const stat of stats) {
-                    if (stat.name === 'wins') {
-                        wins = parseInt(stat.value) || 0;
-                        break;
-                    }
-                }
-                return { id: teamId, wins };
-            });
-
-            // Sort by wins descending and take top 8
-            teams.sort((a, b) => b.wins - a.wins);
-            const topN = TOP_TIER_THRESHOLDS['nhl'].topN;
-            const topTeams = teams.slice(0, topN);
-            topTierTeamIds.push(...topTeams.map(t => t.id));
-        }
-
-        const result = { topTierTeamIds, error: false };
-        setCache(cacheKey, result);
-        return result;
-    } catch (error) {
-        console.error('Error fetching NHL standings:', error);
-        return { topTierTeamIds: [], error: true };
-    }
-}
+// Note: fetchNBATopTierTeams() and fetchNHLTopTierTeams() are now in shared.js
+// to ensure consistent cache keys when navigating between pages
 
 // Helper: Check if a team ID matches any in a list (more reliable than name matching)
 function teamIdMatchesList(teamId, teamIdList) {
@@ -941,6 +880,10 @@ async function fetchBigGamesForCalendar() {
 
                 const homeTeam = competitors.find(c => c.homeAway === 'home');
                 const awayTeam = competitors.find(c => c.homeAway === 'away');
+
+                // Skip game if either team is missing (prevents incorrect categorization)
+                if (!homeTeam || !awayTeam) continue;
+
                 // Use team IDs for matching instead of names (more reliable)
                 const homeTeamId = homeTeam?.team?.id || homeTeam?.id || '';
                 const awayTeamId = awayTeam?.team?.id || awayTeam?.id || '';
@@ -1079,6 +1022,10 @@ function hideRefreshIndicator() {
 
 // Main function to load all schedules
 async function loadSchedules() {
+    // Invalidate localStorage caches at start of each load cycle
+    // This ensures fresh data on manual refresh or auto-refresh
+    invalidateCalendarCache();
+
     const container = document.getElementById('calendar');
     const updateTime = document.getElementById('update-time');
 
