@@ -420,18 +420,34 @@ function initBigGameSettings() {
 
     const settings = getBigGameSettings();
 
+    // Helper: get appropriate categories for a competition
+    const getCategoriesForCompetition = (competition) => {
+        return competition === 'champions-league' ? CL_CATEGORIES : ALL_CATEGORIES;
+    };
+
+    // Helper: get display name for a category (standard or CL)
+    const getDisplayName = (category) => {
+        return GAME_CATEGORY_DISPLAY_NAMES[category] || CL_CATEGORY_DISPLAY_NAMES[category] || category;
+    };
+
+    // Helper: get description for a category (standard or CL)
+    const getDescription = (category) => {
+        return GAME_CATEGORY_DESCRIPTIONS[category] || CL_CATEGORY_DESCRIPTIONS[category] || '';
+    };
+
     // Generate HTML for each competition section
     let sectionsHtml = '';
     for (const [competitionKey, competitionName] of Object.entries(COMPETITIONS)) {
         const enabledCategories = settings.perCompetition[competitionKey] || [];
         const enabledCount = enabledCategories.length;
+        const categories = getCategoriesForCompetition(competitionKey);
 
         // Generate toggles for each category
         let categoriesHtml = '';
-        for (const category of ALL_CATEGORIES) {
+        for (const category of categories) {
             const isChecked = enabledCategories.includes(category);
-            const displayName = GAME_CATEGORY_DISPLAY_NAMES[category] || category;
-            const description = GAME_CATEGORY_DESCRIPTIONS[category] || '';
+            const displayName = getDisplayName(category);
+            const description = getDescription(category);
 
             categoriesHtml += `
                 <label class="category-toggle">
@@ -452,7 +468,7 @@ function initBigGameSettings() {
                 <div class="competition-header">
                     <span class="collapse-indicator">&#9654;</span>
                     <span class="competition-name">${competitionName}</span>
-                    <span class="enabled-count">${enabledCount}/${ALL_CATEGORIES.length}</span>
+                    <span class="enabled-count">${enabledCount}/${categories.length}</span>
                     <span class="bulk-select-buttons">
                         <button type="button" class="bulk-select-btn select-all-btn" data-competition="${competitionKey}">All</button>
                         <button type="button" class="bulk-select-btn select-none-btn" data-competition="${competitionKey}">None</button>
@@ -525,9 +541,10 @@ function updateEnabledCount(competitionKey) {
 
     const checkboxes = section.querySelectorAll('input[type="checkbox"]');
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const totalCategories = competitionKey === 'champions-league' ? CL_CATEGORIES.length : ALL_CATEGORIES.length;
     const countEl = section.querySelector('.enabled-count');
     if (countEl) {
-        countEl.textContent = `${checkedCount}/${ALL_CATEGORIES.length}`;
+        countEl.textContent = `${checkedCount}/${totalCategories}`;
     }
 }
 
@@ -544,9 +561,10 @@ function setupBulkSelectButtons() {
             // Check all checkboxes
             checkboxes.forEach(cb => cb.checked = true);
 
-            // Update settings
+            // Update settings (use CL_CATEGORIES for Champions League, ALL_CATEGORIES for others)
             const currentSettings = getBigGameSettings();
-            currentSettings.perCompetition[competition] = [...ALL_CATEGORIES];
+            const categories = competition === 'champions-league' ? CL_CATEGORIES : ALL_CATEGORIES;
+            currentSettings.perCompetition[competition] = [...categories];
             saveBigGameSettings(currentSettings);
 
             // Update count display

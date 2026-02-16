@@ -692,8 +692,8 @@ function renderGamesTable(games, tableId) {
             }
 
             // Badge: show the game category type with hover description
-            const categoryName = GAME_CATEGORY_DISPLAY_NAMES[game.gameCategory] || 'Big Game';
-            const categoryDesc = GAME_CATEGORY_DESCRIPTIONS[game.gameCategory] || '';
+            const categoryName = getGameCategoryDisplayName(game.gameCategory);
+            const categoryDesc = getGameCategoryDescription(game.gameCategory);
             reasonBadge = `<span class="game-reason-badge big-game" data-tooltip="${categoryDesc}">${categoryName}</span>`;
         } else {
             // Regular games: favorite team bolded
@@ -902,27 +902,34 @@ async function fetchBigGamesForCalendar() {
                 const bothTopTier = homeIsTopTier && awayIsTopTier;
 
                 let qualifies = false;
+                let clCategory = null;  // For CL-specific category
 
-                if (involvesFavorite) {
-                    // Game involves a favorite - qualifies for potential Beat Em Off, etc.
-                    if (config.requiresEnglishTeam) {
-                        // CL: favorite must be English team
-                        const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
-                        const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
-                        qualifies = (homeIsFavorite && homeIsEnglish) || (awayIsFavorite && awayIsEnglish);
-                    } else {
-                        qualifies = true;
+                if (config.requiresEnglishTeam) {
+                    // Champions League: uses unique CL-specific categories
+                    const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
+                    const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
+                    const homeIsTopTier = teamIdMatchesList(homeTeamId, topTierTeamIds);
+                    const awayIsTopTier = teamIdMatchesList(awayTeamId, topTierTeamIds);
+
+                    // Determine CL category (priority order)
+                    if (involvesFavorite) {
+                        clCategory = 'cl-favorite';
+                    } else if (homeIsEnglish && awayIsEnglish) {
+                        clCategory = 'cl-english-derby';
+                    } else if (homeIsTopTier || awayIsTopTier) {
+                        clCategory = 'cl-top-english';
+                    } else if (homeIsEnglish || awayIsEnglish) {
+                        clCategory = 'cl-other-english';
                     }
+
+                    // Check if this CL category is enabled in settings
+                    qualifies = clCategory && isCategoryEnabledForCompetition(clCategory, config.league);
+                } else if (involvesFavorite) {
+                    // Game involves a favorite - qualifies for potential Beat Em Off, etc.
+                    qualifies = true;
                 } else if (bothTopTier) {
                     // Rob Lowe: two top tier teams (neither is favorite)
-                    if (config.requiresEnglishTeam) {
-                        // CL: at least one English team
-                        const homeIsEnglish = teamIdMatchesList(homeTeamId, allEnglishTeamIds);
-                        const awayIsEnglish = teamIdMatchesList(awayTeamId, allEnglishTeamIds);
-                        qualifies = homeIsEnglish || awayIsEnglish;
-                    } else {
-                        qualifies = true;
-                    }
+                    qualifies = true;
                 }
 
                 if (!qualifies) continue;
@@ -943,15 +950,27 @@ async function fetchBigGamesForCalendar() {
                     .join(', ') || 'TBD';
 
                 // Categorize teams and game
-                const homeTeamCategory = categorizeTeam(homeTeamId, topTierTeamIds, favoriteTeamIds);
-                const awayTeamCategory = categorizeTeam(awayTeamId, topTierTeamIds, favoriteTeamIds);
-                const gameCategory = categorizeGame(homeTeamCategory, awayTeamCategory);
+                // For Champions League, use the CL-specific category determined above
+                // For other competitions, use standard categorization
+                let gameCategory;
+                let homeTeamCategory = null;
+                let awayTeamCategory = null;
 
-                // Compute isBigGame based on enabled categories in settings for this competition
-                const isBigGame = computeIsBigGameForCompetition(gameCategory, config.league);
+                if (clCategory) {
+                    // Champions League: use CL-specific category
+                    gameCategory = clCategory;
+                } else {
+                    // Standard categorization for other competitions
+                    homeTeamCategory = categorizeTeam(homeTeamId, topTierTeamIds, favoriteTeamIds);
+                    awayTeamCategory = categorizeTeam(awayTeamId, topTierTeamIds, favoriteTeamIds);
+                    gameCategory = categorizeGame(homeTeamCategory, awayTeamCategory);
 
-                // Only include if this game category is enabled for this competition
-                if (!isBigGame) continue;
+                    // Compute isBigGame based on enabled categories in settings for this competition
+                    const isBigGame = computeIsBigGameForCompetition(gameCategory, config.league);
+
+                    // Only include if this game category is enabled for this competition
+                    if (!isBigGame) continue;
+                }
 
                 // Format as a calendar game entry
                 bigGames.push({

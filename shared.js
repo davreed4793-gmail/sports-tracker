@@ -108,7 +108,8 @@ function invalidateSettingsCache() {
 // Schema version - increment when adding new categories or competitions
 // Version 1: Initial per-competition settings
 // Version 2: Added 'playoff-preview' category
-const SETTINGS_SCHEMA_VERSION = 2;
+// Version 3: Champions League uses unique CL-specific categories
+const SETTINGS_SCHEMA_VERSION = 3;
 
 // Competition keys to display names mapping
 const COMPETITIONS = {
@@ -127,15 +128,19 @@ function isSoccerLeague(league) {
     return SOCCER_LEAGUES.includes(league);
 }
 
-// All game categories
+// All game categories (standard - used by most competitions)
 const ALL_CATEGORIES = ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'];
 
+// Champions League specific categories (replaces standard categories for CL)
+const CL_CATEGORIES = ['cl-favorite', 'cl-top-english', 'cl-other-english', 'cl-english-derby'];
+
 // Default: all categories enabled for all competitions
+// Note: Champions League uses CL-specific categories, others use standard ALL_CATEGORIES
 const DEFAULT_BIG_GAME_SETTINGS = {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     perCompetition: {
         'premier-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
-        'champions-league': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
+        'champions-league': ['cl-favorite', 'cl-top-english', 'cl-other-english', 'cl-english-derby'],
         'fa-cup': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
         'league-cup': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
         'nba': ['rob-lowe', 'playoff-preview', 'measuring-stick', 'beat-em-off', 'house-divided'],
@@ -188,10 +193,13 @@ function getBigGameSettings() {
                 const savedVersion = parsed.schemaVersion || 1;
                 let needsSave = false;
 
-                // Ensure all competitions exist (add new competitions with all categories)
+                // Ensure all competitions exist (add new competitions with appropriate categories)
                 for (const competition of Object.keys(COMPETITIONS)) {
                     if (!parsed.perCompetition[competition]) {
-                        parsed.perCompetition[competition] = [...ALL_CATEGORIES];
+                        // Champions League uses its own category set
+                        parsed.perCompetition[competition] = competition === 'champions-league'
+                            ? [...CL_CATEGORIES]
+                            : [...ALL_CATEGORIES];
                         needsSave = true;
                     }
                 }
@@ -204,6 +212,13 @@ function getBigGameSettings() {
                             parsed.perCompetition[competition].push('playoff-preview');
                         }
                     }
+                    needsSave = true;
+                }
+
+                if (savedVersion < 3) {
+                    // Version 3: Champions League uses unique CL-specific categories
+                    // Reset CL to new category scheme
+                    parsed.perCompetition['champions-league'] = [...CL_CATEGORIES];
                     needsSave = true;
                 }
 
@@ -366,6 +381,31 @@ const GAME_CATEGORY_DESCRIPTIONS = {
     [GAME_CATEGORIES.BEAT_EM_OFF]: 'Your favorites vs regular teams',
     [GAME_CATEGORIES.HOUSE_DIVIDED]: 'Two of your favorites playing each other'
 };
+
+// Champions League specific category display names
+const CL_CATEGORY_DISPLAY_NAMES = {
+    'cl-favorite': 'Favorite Team',
+    'cl-top-english': 'Top English',
+    'cl-other-english': 'Other English',
+    'cl-english-derby': 'English Derby'
+};
+
+const CL_CATEGORY_DESCRIPTIONS = {
+    'cl-favorite': 'Champions League games involving one of your favorite teams',
+    'cl-top-english': 'Games involving a top-tier Premier League team',
+    'cl-other-english': 'Games involving a non-top-tier Premier League team',
+    'cl-english-derby': 'Two English teams facing off'
+};
+
+// Get display name for any game category (standard or CL-specific)
+function getGameCategoryDisplayName(category) {
+    return GAME_CATEGORY_DISPLAY_NAMES[category] || CL_CATEGORY_DISPLAY_NAMES[category] || category;
+}
+
+// Get description for any game category (standard or CL-specific)
+function getGameCategoryDescription(category) {
+    return GAME_CATEGORY_DESCRIPTIONS[category] || CL_CATEGORY_DESCRIPTIONS[category] || '';
+}
 
 // Team Category Display Labels (for hover tooltips)
 const TEAM_CATEGORY_LABELS = {
